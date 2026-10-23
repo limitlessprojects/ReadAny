@@ -24,6 +24,7 @@ import { setTheme as setTauriTheme } from "@tauri-apps/api/app";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { shouldSuppressNativeContextMenu } from "./lib/environment";
 import { TauriPlatformService } from "./lib/platform/tauri-platform-service";
+import { WebPlatformService, webFetch } from "./lib/platform/web-platform-service";
 import { registerDesktopFallbackContentProvider } from "./lib/rag/fallback-content-provider";
 import { syncLegacyDesktopLibraryRootConfig } from "./lib/storage/desktop-library-root";
 import { TauriVectorDB } from "./lib/tauri-vector-db";
@@ -32,6 +33,14 @@ import { flushAllWrites } from "./stores/persist";
 import { useVectorModelStore } from "./stores/vector-model-store";
 
 installFeedbackLogCapture();
+
+/**
+ * Web build: run the full app in a plain browser (no Tauri shell).
+ * Detected by the absence of Tauri IPC internals; the vite READANY_WEB=1
+ * mode additionally aliases @tauri-apps/plugin-fs + plugin-dialog to
+ * OPFS-backed shims so imports work end to end.
+ */
+const IS_WEB = typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
 
 // Suppress the WebView's native context menu in production builds; dev keeps
 // it so the native menu (Inspect Element etc.) stays available for debugging.
@@ -48,6 +57,7 @@ if (shouldSuppressNativeContextMenu) {
 // instead of the OS scheme (e.g. sepia maps to a light scheme, so borders/text
 // in light-mode colors stay visible instead of the OS dark-mode colors).
 function syncSystemTheme() {
+  if (IS_WEB) return; // browser handles prefers-color-scheme natively
   const theme = document.documentElement.getAttribute("data-theme");
   void setTauriTheme(theme === "dark" ? "dark" : "light").catch(() => {});
 }
@@ -62,13 +72,25 @@ const feedbackWorkerUrl =
 setFeedbackWorkerUrl(feedbackWorkerUrl);
 
 // Register platform service before any database/core operations
-const tauriPlatform = new TauriPlatformService();
-tauriPlatform.initSync().catch(console.error);
-setPlatformService(tauriPlatform);
-registerDesktopFallbackContentProvider();
+let webPlatform: WebPlatformService | null = null;
+if (IS_WEB) {
+  webPlatform = new WebPlatformService();
+  setPlatformService(webPlatform);
+  void webPlatform.init().catch(console.error);
+} else {
+  const tauriPlatform = new TauriPlatformService();
+  tauriPlatform.initSync().catch(console.error);
+  setPlatformService(tauriPlatform);
+  registerDesktopFallbackContentProvider();
+}
 
-// Set Tauri fetch for streaming AI requests (avoids CORS issues)
-setStreamingFetch(tauriFetch as typeof globalThis.fetch);
+// Streaming AI requests: Tauri native fetch (CORS-free) vs browser fetch
+// (web build routes provider APIs through the dev-server proxy).
+if (IS_WEB) {
+  setStreamingFetch(webFetch);
+} else {
+  setStreamingFetch(tauriFetch as typeof globalThis.fetch);
+}
 
 // Register embedding worker factory for Vite/Tauri
 // Must use `new URL(...)` + explicit `{ type: "module" }` so that
@@ -126,15 +148,35 @@ configureRagSearchFromVectorModelStore();
 useVectorModelStore.subscribe(configureRagSearchFromVectorModelStore);
 
 // Set vector database reference (initialized in Rust setup)
-const tauriVectorDB = new TauriVectorDB();
-setVectorDB(tauriVectorDB);
-console.log("[VectorDB] TauriVectorDB reference set");
+// Web build: no vector DB (Rust-backed) — chat grounding degrades to the
+// first-class BM25 inverted-index path.
+if (IS_WEB) {
+  console.log("[VectorDB] web build — using BM25-only grounding");
+} else {
+  const tauriVectorDB = new TauriVectorDB();
+  setVectorDB(tauriVectorDB);
+  console.log("[VectorDB] TauriVectorDB reference set");
+}
 
-const desktopDataRootReady = syncLegacyDesktopLibraryRootConfig().catch(console.error);
+// Desktop: resolve/configure the user library root. Web: nothing to resolve,
+// but the schema MUST be created (initDatabase) before any store queries.
+const dataRootReady: Promise<void> = IS_WEB
+  ? (async () => {
+      const { initDatabase } = await import("@readany/core/db");
+      await initDatabase();
+      console.log("[Web] database schema ready");
+    })().catch((err) => {
+      console.error("[Web] initDatabase failed:", err);
+    })
+  : syncLegacyDesktopLibraryRootConfig().catch(console.error);
 
 // Ensure i18n is fully initialized before rendering
-i18nReady.then(() => {
-  desktopDataRootReady.catch(console.error);
+// (web also waits for the sql.js schema so store loaders never race it)
+const renderReady: Promise<unknown> = IS_WEB
+  ? Promise.all([i18nReady, dataRootReady])
+  : i18nReady;
+renderReady.then(() => {
+  dataRootReady.catch(console.error);
 
   // Restore saved theme from localStorage
   const savedTheme = localStorage.getItem("readany-theme");
@@ -158,10 +200,12 @@ i18nReady.then(() => {
   // Flush pending state writes before window closes
   window.addEventListener("beforeunload", () => {
     flushAllWrites();
+    // Flush the sql.js debounce so the DB image survives the reload.
+    void webPlatform?.flushAllDatabases();
   });
 
   // Initialize database and load books
-  desktopDataRootReady.then(() => {
+  dataRootReady.then(() => {
     useLibraryStore.getState().loadBooks();
   });
 

@@ -8,6 +8,9 @@ import { ArrowDownToLine, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+// Web build has no Tauri updater — skip the check entirely.
+const IS_WEB = typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
+
 export function UpdateNotification() {
   const { t } = useTranslation();
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
@@ -17,6 +20,7 @@ export function UpdateNotification() {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
+    if (IS_WEB) return; // no Tauri updater on web
     // Check for updates 5 seconds after app starts (don't block startup)
     const timer = setTimeout(async () => {
       try {

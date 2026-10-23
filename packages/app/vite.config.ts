@@ -7,7 +7,20 @@ import { defineConfig } from "vite";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+// Web build mode: alias @tauri-apps/plugin-fs + plugin-dialog to OPFS-backed
+// shims (used with `pnpm --filter app dev:web`).
+// @ts-expect-error process is a nodejs global
+const WEB_SHIM = process.env.READANY_WEB === "1";
 const pdfjsDist = path.resolve(__dirname, "../../node_modules/pdfjs-dist");
+
+// Cerebras API proxy: browser can't reach api.cerebras.ai cross-origin (and
+// keys stay server-side when CEREBRAS_API_KEY is exported). Target defaults
+// to the local OpenAI-compatible mock server; set CEREBRAS_API_TARGET to
+// https://api.cerebras.ai for the real thing.
+// @ts-expect-error process is a nodejs global
+const CEREBRAS_TARGET = process.env.CEREBRAS_API_TARGET || "http://127.0.0.1:8787";
+// @ts-expect-error process is a nodejs global
+const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY || "";
 
 // The About dialog shows the Tauri framework version. @tauri-apps/api releases
 // in lockstep but can differ by a patch, and its package.json is not importable
@@ -46,6 +59,15 @@ export default defineConfig(async () => ({
   },
   resolve: {
     alias: {
+      ...(WEB_SHIM
+        ? {
+            "@tauri-apps/plugin-fs": path.resolve(__dirname, "src/lib/platform/tauri-shim-fs.ts"),
+            "@tauri-apps/plugin-dialog": path.resolve(
+              __dirname,
+              "src/lib/platform/tauri-shim-dialog.ts",
+            ),
+          }
+        : {}),
       "@": path.resolve(__dirname, "./src"),
       "pdfjs-dist/build/pdf.worker.mjs": path.join(pdfjsDist, "build/pdf.worker.mjs"),
       "pdfjs-dist": pdfjsDist,
@@ -72,6 +94,24 @@ export default defineConfig(async () => ({
       : undefined,
     watch: {
       ignored: ["**/src-tauri/**"],
+    },
+    proxy: {
+      "/cerebras-api": {
+        target: CEREBRAS_TARGET,
+        changeOrigin: true,
+        rewrite: (p: string) => p.replace(/^\/cerebras-api/, ""),
+        // Keep SSE streams unbuffered.
+        headers: { "X-Accel-Buffering": "no" },
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            if (CEREBRAS_KEY) {
+              const auth = proxyReq.getHeader("authorization");
+              const hasKey = typeof auth === "string" && auth.length > "Bearer ".length;
+              if (!hasKey) proxyReq.setHeader("Authorization", `Bearer ${CEREBRAS_KEY}`);
+            }
+          });
+        },
+      },
     },
   },
 }));

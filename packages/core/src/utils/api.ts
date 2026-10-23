@@ -153,6 +153,14 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     placeholder: "https://api.groq.com/openai",
     keyPlaceholder: "gsk_...",
   },
+  cerebras: {
+    id: "cerebras",
+    name: "Cerebras",
+    defaultBaseUrl: "https://api.cerebras.ai",
+    needsV1Suffix: true,
+    placeholder: "https://api.cerebras.ai",
+    keyPlaceholder: "csk-...",
+  },
   together: {
     id: "together",
     name: "Together AI",

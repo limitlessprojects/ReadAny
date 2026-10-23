@@ -29,3 +29,12 @@ declare module "foliate-js/overlayer.js";
 declare module "foliate-js/progress.js";
 declare module "foliate-js/vendor/fflate.js";
 declare module "foliate-js/vendor/zip.js";
+
+// sql.js — SQLite compiled to WASM (MIT). No bundled TS types.
+declare module "sql.js";
+
+// Vite ?url asset imports
+declare module "*?url" {
+  const url: string;
+  export default url;
+}

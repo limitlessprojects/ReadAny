@@ -138,6 +138,7 @@ export type AIProviderType =
   | "volces"
   | "baichuan"
   | "minimax"
+  | "cerebras"
   | "groq"
   | "together"
   | "fireworks"
