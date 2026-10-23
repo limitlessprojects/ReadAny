@@ -25,6 +25,11 @@ concurrency:
   group: android-apk
   cancel-in-progress: false
 
+# The rolling-release step creates/deletes releases via the API — the
+# default GITHUB_TOKEN is read-only without this.
+permissions:
+  contents: write
+
 jobs:
   apk:
     runs-on: ubuntu-latest
