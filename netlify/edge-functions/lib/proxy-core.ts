@@ -168,7 +168,25 @@ export async function handleProviderProxy(req: Request, env: ProxyEnv): Promise<
 
   // Settings "test connection" builds native Gemini URLs with ?key=<key>;
   // swap the placeholder for the server key there too.
-  const serverKey = await resolveServerKey(env, target.keyEnv, PATH_PREFIXES[prefix] === "gemini" ? GEMINI_KEY_GIST_URL : undefined);
+  //
+  // Gemini is GIST-FIRST: a stale or placeholder GEMINI_API_KEY sitting in
+  // the deploy host's env must never shadow the rotating demo key, and if
+  // the gist fetch ever fails the env var is still there as a fallback.
+  // Non-gemini targets keep the plain env-var resolution.
+  let serverKey = "";
+  let keySource = "none";
+  if (PATH_PREFIXES[prefix] === "gemini" && GEMINI_KEY_GIST_URL) {
+    serverKey = await resolveServerKey(env, undefined, GEMINI_KEY_GIST_URL);
+    if (serverKey) {
+      keySource = "gist";
+    } else if (target.keyEnv) {
+      serverKey = env.get(target.keyEnv) || "";
+      if (serverKey) keySource = "env";
+    }
+  } else {
+    serverKey = await resolveServerKey(env, target.keyEnv);
+    if (serverKey) keySource = "env";
+  }
   if (isProxyPlaceholder(query.get("key"))) {
     if (serverKey) query.set("key", serverKey);
     else query.delete("key");
@@ -221,6 +239,16 @@ export async function handleProviderProxy(req: Request, env: ProxyEnv): Promise<
     // cerebras-style targets: Bearer only.
     if (!clientRealAuth) headers.set("authorization", `Bearer ${serverKey}`);
   }
+  // Fail fast when there is nothing to authenticate with — forwarding the
+  // literal "proxy" placeholder (or an empty credential) to Google only
+  // produces an opaque 400 that looks like a broken BYOK key.
+  const realQueryKey = query.has("key") && !isProxyPlaceholder(query.get("key"));
+  if (!serverKey && !clientRealAuth && !clientRealGoog && !realQueryKey && PATH_PREFIXES[prefix] === "gemini") {
+    return jsonError(
+      "demo AI is temporarily unavailable: the server demo key could not be loaded. BYOK still works — add your own key in Settings → AI.",
+      503,
+    );
+  }
   if (target.extraHeaders) {
     for (const [name, value] of Object.entries(target.extraHeaders)) {
       if (!headers.get(name)) headers.set(name, value);
@@ -255,6 +283,8 @@ export async function handleProviderProxy(req: Request, env: ProxyEnv): Promise<
     const value = upstreamRes.headers.get(name);
     if (value !== null) resHeaders.set(name, value);
   }
+  // Diagnostic: which credential the proxy attached ("gist" | "env" | "none").
+  resHeaders.set("x-demo-key-source", keySource);
   // SSE/text streams must not be buffered by the CDN.
   const contentType = upstreamRes.headers.get("content-type") || "";
   if (contentType.includes("text/event-stream")) {
