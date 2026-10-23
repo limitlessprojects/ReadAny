@@ -43,13 +43,12 @@ module.exports = {
         "android.permission.MODIFY_AUDIO_SETTINGS",
       ],
     },
+    // expo-dev-client (dev launcher) is only useful during development —
+    // shipping it in the release APK adds dead dex + native weight.
     plugins: [
-      [
-        "expo-dev-client",
-        {
-          launchMode: "launcher",
-        },
-      ],
+      ...(variant.key === "development" ? [["expo-dev-client", { launchMode: "launcher" }]] : []),
+      // Release/preview APKs are arm64-only (~150MB smaller).
+      ...(variant.key !== "development" ? ["./plugins/withAbiFilter"] : []),
       [
         "expo-av",
         {
@@ -89,6 +88,11 @@ module.exports = {
       ],
     ],
     scheme: variant.scheme,
+    // Without the plugin, autolinking would still compile expo-dev-launcher's
+    // native code into the release APK — exclude it from autolinking too.
+    ...(variant.key === "development"
+      ? {}
+      : { autolinking: { exclude: ["expo-dev-client", "expo-dev-launcher"] } }),
     extra: {
       appVariant: variant.key,
       eas: {

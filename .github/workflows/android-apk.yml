@@ -58,6 +58,12 @@ jobs:
           APP_VARIANT: production
         run: pnpm exec expo prebuild -p android --no-install
 
+      - name: Verify arm64-only packaging
+        working-directory: packages/app-expo/android
+        run: |
+          grep -E "reactNativeArchitectures" gradle.properties
+          grep -E "abiFilters" app/build.gradle
+
       - name: Gradle assembleRelease
         working-directory: packages/app-expo/android
         env:
