@@ -45,7 +45,8 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          MODEL=$(jq -r '[.models[].name | select(test("gemini-.*-flash"))] | map(select(test("tts|image|embedding|learnlang";"i") | not)) | .[0] | sub("^models/";"")' /tmp/models.json)
+          # gemini-2.5-flash is deprecated for new users — prefer 3.8 explicitly.
+          MODEL=$(jq -r 'if any(.models[].name == "models/gemini-3.8-flash") then "gemini-3.8-flash" else ([.models[].name | select(test("gemini-.*-flash"))] | map(select(test("tts|image|embedding|learnlang";"i") | not)) | .[0] | sub("^models/";"")) end' /tmp/models.json)
           echo "Using model: $MODEL"
           echo "$MODEL" > /tmp/model-name.txt
           code=$(curl -sS -o /tmp/chat.json -w "%{http_code}" \
@@ -117,7 +118,9 @@ jobs:
           version: 9.15.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 24 needed by scripts/serve-dist.mjs: it imports netlify TS edge
+          # functions directly and relies on Node's built-in type stripping.
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Core unit tests
