@@ -43,3 +43,8 @@ export {
   type FallbackContentProvider,
   type FallbackTextSegment,
 } from "./fallback-content-service";
+export {
+  STREAM_METRICS_EVENT,
+  getLastStreamMetrics,
+} from "./stream-metrics";
+export type { StreamMetrics } from "./stream-metrics";

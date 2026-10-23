@@ -3,9 +3,12 @@
  * Uses Part-based rendering for real-time updates
  */
 import type { CitationPart, MessageV2, QuotePart } from "@readany/core/types/message";
-import { ArrowDown, Check, Copy, Quote } from "lucide-react";
+import { STREAM_METRICS_EVENT, getLastStreamMetrics, type StreamMetrics } from "@readany/core/ai";
+import { ArrowDown, Check, Copy, Quote, Square, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { edgeTTS, systemTTS } from "@/lib/tts/tts-service";
+import { useTTSStore } from "@/stores/tts-store";
 import { PartRenderer } from "./PartRenderer";
 import { StreamingIndicator } from "./StreamingIndicator";
 
@@ -125,6 +128,7 @@ export function MessageList({
             message={msg}
             onCitationClick={onCitationClick}
             isStreaming={idx === messages.length - 1 && isLastMsgStreaming}
+            isLast={idx === messages.length - 1}
             currentStep={currentStep}
           />
         ))}
@@ -152,6 +156,7 @@ interface MessageBubbleProps {
   message: MessageV2;
   onCitationClick?: (citation: CitationPart) => void;
   isStreaming?: boolean;
+  isLast?: boolean;
   currentStep?: "thinking" | "tool_calling" | "responding" | "idle";
 }
 
@@ -200,7 +205,7 @@ function CopyMessageButton({ message }: { message: MessageV2 }) {
   );
 }
 
-function MessageBubble({ message, onCitationClick, isStreaming, currentStep }: MessageBubbleProps) {
+function MessageBubble({ message, onCitationClick, isStreaming, isLast, currentStep }: MessageBubbleProps) {
   if (message.role === "user") {
     const quoteParts = message.parts.filter((p) => p.type === "quote") as QuotePart[];
     const textParts = message.parts.filter((p) => p.type === "text");
@@ -268,7 +273,119 @@ function MessageBubble({ message, onCitationClick, isStreaming, currentStep }: M
         />
       ))}
       {showGapIndicator && <StreamingIndicator step="thinking" />}
-      {!isStreaming && <CopyMessageButton message={message} />}
+      {!isStreaming && message.role === "assistant" && (
+        <AssistantMessageActions message={message} isLast={isLast} />
+      )}
+      {!isStreaming && message.role !== "assistant" && <CopyMessageButton message={message} />}
+    </div>
+  );
+}
+
+/**
+ * Rough Swahili detection — enough to auto-pick a sw-KE Edge voice when the
+ * assistant answers in Swahili. Deliberately conservative: high-frequency
+ * function words scored against text length.
+ */
+const SWAHILI_MARKERS = [
+  " na ", " ya ", " wa ", " kwa ", " katika ", " ni ", " hii ", " kwa ",
+  " unaweza ", " tafadhali ", " asante ", " hapana ", " ndiyo ", " lakini ",
+  " kwa sababu ", " pia ", " sana ", " watu ", " kitu ", " sana ",
+];
+
+function looksLikeSwahili(text: string): boolean {
+  const lower = ` ${text.toLowerCase()} `;
+  let hits = 0;
+  for (const marker of SWAHILI_MARKERS) {
+    if (lower.includes(marker)) hits += 1;
+  }
+  return hits >= 4 && lower.length > 120;
+}
+
+/** Assistant message actions: copy, read aloud (TTS), and live speed badge. */
+function AssistantMessageActions({ message, isLast }: { message: MessageV2; isLast?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [metrics, setMetrics] = useState<StreamMetrics | null>(() =>
+    // The done-event may fire just before the bubble re-renders post-stream;
+    // seed from the module-level last measurement to avoid missing it.
+    isLast ? getLastStreamMetrics() : null,
+  );
+  const ttsConfig = useTTSStore((s) => s.config);
+
+  useEffect(() => {
+    if (!isLast) return;
+    const handler = (event: Event) => setMetrics((event as CustomEvent<StreamMetrics>).detail);
+    window.addEventListener(STREAM_METRICS_EVENT, handler);
+    return () => window.removeEventListener(STREAM_METRICS_EVENT, handler);
+  }, [isLast]);
+
+  const handleCopy = useCallback(() => {
+    const text = extractMessageText(message);
+    if (text) {
+      navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [message]);
+
+  const handleSpeak = useCallback(() => {
+    if (speaking) {
+      systemTTS.stop();
+      edgeTTS.stop();
+      setSpeaking(false);
+      return;
+    }
+    const text = extractMessageText(message);
+    if (!text) return;
+    // Strip markdown noise for cleaner speech
+    const spoken = text
+      .replace(/```[\s\S]*?```/g, " code block ")
+      .replace(/[#*_>`~\[\]()]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    setSpeaking(true);
+    const onEnd = () => setSpeaking(false);
+    if (ttsConfig.engine === "edge") {
+      const voice = looksLikeSwahili(spoken)
+        ? { ...ttsConfig, edgeVoice: "sw-KE-RafikiNeural" }
+        : ttsConfig;
+      edgeTTS.onEnd = onEnd;
+      void edgeTTS.speak(spoken, voice);
+    } else {
+      systemTTS.onEnd = onEnd;
+      systemTTS.speak(spoken, ttsConfig);
+    }
+  }, [message, speaking, ttsConfig]);
+
+  return (
+    <div className="flex items-center gap-1 pt-0.5">
+      <button
+        type="button"
+        className="inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-60 transition-opacity hover:bg-muted hover:text-foreground hover:opacity-100"
+        onClick={handleCopy}
+        title="Copy"
+      >
+        {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+      </button>
+      <button
+        type="button"
+        className={`inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-opacity hover:bg-muted hover:text-foreground ${
+          speaking ? "bg-primary/10 text-primary opacity-100" : "text-muted-foreground opacity-60"
+        }`}
+        onClick={handleSpeak}
+        title={speaking ? "Stop reading" : "Read aloud"}
+      >
+        {speaking ? <Square className="size-3" /> : <Volume2 className="size-3" />}
+        {speaking && <span className="text-[10px]">reading…</span>}
+      </button>
+      {isLast && metrics && metrics.chunks > 3 && (
+        <span
+          className="ml-1 inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
+          title={`Time to first token ${metrics.ttftMs}ms · ${metrics.chunks} SSE chunks · ${metrics.totalMs}ms total`}
+        >
+          ⚡ TTFT {metrics.ttftMs}ms · {Math.round((metrics.chunks / metrics.totalMs) * 1000)} tok/s
+        </span>
+      )}
     </div>
   );
 }

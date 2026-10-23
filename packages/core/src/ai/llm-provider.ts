@@ -3,6 +3,7 @@ import type { AIConfig, AIEndpoint } from "../types";
 import { providerRequiresApiKey } from "../utils";
 import { formatApiHost } from "../utils/api";
 import { logAIEndpointDebug, summarizeDebugText } from "./request-debug";
+import { instrumentFetchForMetrics } from "./stream-metrics";
 
 /**
  * Optional custom fetch for streaming support (e.g. expo/fetch in React Native).
@@ -377,7 +378,9 @@ async function patchGeminiThoughtSignatureRequest(
 
 export function getEndpointFetch(endpoint: AIEndpoint, model?: string): typeof globalThis.fetch {
   const exactUrl = endpoint.useExactRequestUrl ? endpoint.baseUrl?.trim() : "";
-  const baseFetch = (_streamingFetch ?? globalThis.fetch).bind(globalThis);
+  const baseFetch = instrumentFetchForMetrics(
+    (_streamingFetch ?? globalThis.fetch).bind(globalThis),
+  );
 
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const finalInput = isRequestLike(input)

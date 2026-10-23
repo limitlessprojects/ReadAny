@@ -10,9 +10,7 @@
  * no incremental storage engine; we export the whole DB image).
  */
 import type { IDatabase } from "@readany/core/services";
-// @ts-expect-error — sql.js ships no TS types (see vite-env.d.ts)
 import initSqlJs from "sql.js";
-// @ts-expect-error — Vite ?url asset import
 import wasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 import { vfsPersistBytes, vfsReadFile } from "./web-vfs";
 

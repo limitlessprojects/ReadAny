@@ -90,7 +90,7 @@ export async function vfsWriteFile(path: string, data: Uint8Array | string): Pro
   if (dir) {
     const fh = await dir.getFileHandle(name, { create: true });
     const writable = await fh.createWritable();
-    await writable.write(bytes);
+    await writable.write(bytes as unknown as FileSystemWriteChunkType);
     await writable.close();
     setBytes(path, bytes); // keep object-URL cache warm for convertFileSrc
     return;

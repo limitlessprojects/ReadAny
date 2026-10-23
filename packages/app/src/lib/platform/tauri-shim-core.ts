@@ -47,11 +47,11 @@ export const SERIALIZE_TO_IPC_FN = "__TAURI_TO_IPC_KEY__";
 export class Channel<T = unknown> {
   id = 0;
   #onmessage: ((response: T) => void) | null = null;
-  set onmessage(handler: (response: T) => void) {
-    this.#onmessage = handler;
+  set onmessage(handler: ((response: T) => void) | undefined) {
+    this.#onmessage = handler ?? null;
   }
-  get onmessage() {
-    return this.#onmessage;
+  get onmessage(): ((response: T) => void) | undefined {
+    return this.#onmessage ?? undefined;
   }
   toJSON() {
     return `__CHANNEL__:${this.id}`;
