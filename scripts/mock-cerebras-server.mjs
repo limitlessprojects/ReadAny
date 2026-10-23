@@ -46,10 +46,28 @@ function tokenize(text) {
   return text.match(/\s*\S+/g) ?? [text];
 }
 
+const SWAHILI_MARKERS = /\b(na|ya|wa|kwa|katika|nisaidie|eleza|muhtasari|tafadhali|asante|hii|ni)\b/i;
+
 function makeReply(messages) {
   const last = [...(messages ?? [])].reverse().find((m) => m.role === "user");
   const prompt = typeof last?.content === "string" ? last.content : JSON.stringify(last?.content ?? "");
   const topic = prompt.replace(/\s+/g, " ").trim().slice(0, 160) || "(empty prompt)";
+
+  if (SWAHILI_MARKERS.test(prompt)) {
+    return [
+      "**Hii ni seva ya majaribio ya Cerebras** — mnyororo unafanya kazi kikamilifu (ujaribio tu, si modeli halisi).",
+      "",
+      `Uliuliza: “${topic}”`,
+      "",
+      "### Kilichothibitishwa",
+      "- Majibu yanafika tokeni kwa tokeni (SSE streaming)",
+      "- Maandishi ya Markdown yanaonyeshwa vizuri",
+      "- Sauti ya Kiswahili inaweza kusoma jibu hili kwa sauti",
+      "",
+      "Badilisha `CEREBRAS_API_TARGET=https://api.cerebras.ai` (pamoja na `CEREBRAS_API_KEY`) kuona modeli halisi.",
+    ].join("\n");
+  }
+
   return [
     "This is the **mock Cerebras endpoint** — the pipeline is working end to end (dev/test only, not a real model).",
     "",
