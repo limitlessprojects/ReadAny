@@ -104,6 +104,7 @@ const EDGE_TTS_VOICE_MAP: Record<string, string[]> = {
   "ru-RU": ["ru-RU-DmitryNeural", "ru-RU-SvetlanaNeural"],
   "sk-SK": ["sk-SK-LukasNeural", "sk-SK-ViktoriaNeural"],
   "sv-SE": ["sv-SE-MattiasNeural", "sv-SE-SofieNeural"],
+  "sw-KE": ["sw-KE-ImaniNeural", "sw-KE-RafikiNeural"],
   "th-TH": ["th-TH-NiwatNeural", "th-TH-PremwadeeNeural"],
   "tr-TR": ["tr-TR-AhmetNeural", "tr-TR-EmelNeural"],
   "uk-UA": ["uk-UA-OstapNeural", "uk-UA-PolinaNeural"],

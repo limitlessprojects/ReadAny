@@ -23,8 +23,10 @@ import {
   OpenAICompatibleTTSPlayer,
   XiaomiTTSPlayer,
 } from "../tts/tts-players";
-import type { ITTSPlayer, TTSConfig, TTSProfile } from "../tts/types";
+import { GoogleTranslateTTSPlayer } from "../tts/google-translate-tts";
+import type { ITTSPlayer, TTSEngine, TTSConfig, TTSProfile } from "../tts/types";
 import { DEFAULT_TTS_CONFIG, normalizeTTSConfig } from "../tts/types";
+import { looksLikeSwahiliText } from "../tts/google-translate-tts";
 import { withPersist } from "./persist";
 
 export type TTSPlayState = "stopped" | "playing" | "paused" | "loading";
@@ -35,6 +37,7 @@ export type TTSPlayState = "stopped" | "playing" | "paused" | "loading";
 export interface TTSPlayerFactories {
   createSystemTTS: () => ITTSPlayer;
   createEdgeTTS: () => ITTSPlayer;
+  createGoogleTTS: () => ITTSPlayer;
   createDashScopeTTS: () => ITTSPlayer;
   createXiaomiTTS: () => ITTSPlayer;
   createOpenAICompatibleTTS: () => ITTSPlayer;
@@ -44,6 +47,7 @@ export interface TTSPlayerFactories {
 const defaultFactories: TTSPlayerFactories = {
   createSystemTTS: () => new BrowserTTSPlayer(),
   createEdgeTTS: () => new EdgeTTSPlayer(),
+  createGoogleTTS: () => new GoogleTranslateTTSPlayer(),
   createDashScopeTTS: () => new DashScopeTTSPlayer(),
   createXiaomiTTS: () => new XiaomiTTSPlayer(),
   createOpenAICompatibleTTS: () => new OpenAICompatibleTTSPlayer(),
@@ -67,6 +71,7 @@ export function setTTSPlayerFactories(factories: Partial<TTSPlayerFactories>): v
   // Reset cached instances so new factories take effect
   _systemTTS = null;
   _edgeTTS = null;
+  _googleTTS = null;
   _dashscopeTTS = null;
   _xiaomiTTS = null;
   _openAICompatibleTTS = null;
@@ -75,6 +80,7 @@ export function setTTSPlayerFactories(factories: Partial<TTSPlayerFactories>): v
 /** Lazily-created singleton TTS player instances */
 let _systemTTS: ITTSPlayer | null = null;
 let _edgeTTS: ITTSPlayer | null = null;
+let _googleTTS: ITTSPlayer | null = null;
 let _dashscopeTTS: ITTSPlayer | null = null;
 let _xiaomiTTS: ITTSPlayer | null = null;
 let _openAICompatibleTTS: ITTSPlayer | null = null;
@@ -96,6 +102,11 @@ function getSystemTTS(): ITTSPlayer {
 function getEdgeTTS(): ITTSPlayer {
   if (!_edgeTTS) _edgeTTS = _factories.createEdgeTTS();
   return _edgeTTS;
+}
+
+function getGoogleTTS(): ITTSPlayer {
+  if (!_googleTTS) _googleTTS = _factories.createGoogleTTS();
+  return _googleTTS;
 }
 
 function getDashScopeTTS(): ITTSPlayer {
@@ -209,6 +220,7 @@ function detachAndStopAllPlayers(): void {
   _activeTTS = null;
   detachAndStopPlayer(_systemTTS);
   detachAndStopPlayer(_edgeTTS);
+  detachAndStopPlayer(_googleTTS);
   detachAndStopPlayer(_dashscopeTTS);
   detachAndStopPlayer(_xiaomiTTS);
   detachAndStopPlayer(_openAICompatibleTTS);
@@ -221,6 +233,9 @@ function getPlayerForConfig(config: TTSConfig): ITTSPlayer {
   if (config.engine === "edge") {
     return getEdgeTTS();
   }
+  if (config.engine === "google") {
+    return getGoogleTTS();
+  }
   if (config.engine === "xiaomi") {
     return getXiaomiTTS();
   }
@@ -230,6 +245,26 @@ function getPlayerForConfig(config: TTSConfig): ITTSPlayer {
   return getSystemTTS();
 }
 
+/**
+ * Engine fallback chains. Cloud/blocked engines degrade gracefully instead of
+ * failing silently: Edge ↔ Google Translate cover each other's network
+ * blind spots, and system voices are the always-available last resort.
+ */
+function buildEngineFallbackChain(engine: TTSEngine): TTSEngine[] {
+  switch (engine) {
+    case "edge":
+      return ["edge", "google", "system"];
+    case "google":
+      return ["google", "edge", "system"];
+    case "dashscope":
+    case "xiaomi":
+    case "openai-compatible":
+      return [engine, "system"];
+    case "system":
+      return ["system"];
+  }
+}
+
 function startPlayback(
   segments: string[],
   config: TTSConfig,
@@ -237,61 +272,96 @@ function startPlayback(
   set: (partial: Partial<TTSState>) => void,
   get: () => TTSState,
 ): void {
-  const player = getPlayerForConfig(config);
+  const chain = buildEngineFallbackChain(config.engine);
   const gen = _sessionGeneration;
-  let isStarting = true;
-  _activeTTS = player;
 
-  player.onStateChange = (playState) => {
+  const attempt = (chainIndex: number): void => {
     if (gen !== _sessionGeneration) return;
-    if (isStarting && playState === "stopped") return;
-    if (playState === "stopped") {
+    if (chainIndex >= chain.length) {
       _activeTTS = null;
+      set({ playState: "stopped" });
+      return;
     }
-    set({ playState });
-  };
+    const engine = chain[chainIndex]!;
+    let engineConfig: TTSConfig = engine === config.engine ? config : { ...config, engine };
+    // Language-aware voice auto-switch for the Edge engine: Swahili text gets
+    // a native sw-KE voice without the user hand-picking one. The Google
+    // engine does its own per-text detection (resolveGoogleTtsLang).
+    if (engine === "edge" && !engineConfig.edgeVoice.startsWith("sw-KE")) {
+      const joined = segments.join(" ");
+      if (looksLikeSwahiliText(joined)) {
+        engineConfig = { ...engineConfig, edgeVoice: "sw-KE-RafikiNeural" };
+      }
+    }
+    const player = getPlayerForConfig(engineConfig);
+    let isStarting = true;
+    // Engines can fail through two channels (sync/async speak rejection AND
+    // the onError callback) — make sure the fallback fires exactly once.
+    let fallbackTriggered = false;
+    const triggerFallback = (error: unknown) => {
+      if (fallbackTriggered) return;
+      fallbackTriggered = true;
+      if (gen !== _sessionGeneration) return;
+      console.warn(`[TTS] engine "${engine}" failed, falling back:`, error);
+      try {
+        player.stop();
+      } catch {
+        /* already dead */
+      }
+      if (_activeTTS === player) _activeTTS = null;
+      attempt(chainIndex + 1);
+    };
+    _activeTTS = player;
 
-  player.onChunkChange = (chunkIndex, total) => {
-    if (gen !== _sessionGeneration) return;
-    const absoluteIndex = startIndex + chunkIndex;
-    _sessionCurrentIndex = absoluteIndex;
-    set({
-      currentChunkIndex: absoluteIndex,
-      totalChunks: Math.max(_sessionSegments.length, total),
-    });
-  };
+    player.onError = (error) => triggerFallback(error);
 
-  player.onEnd = () => {
-    if (gen !== _sessionGeneration) return;
-    _activeTTS = null;
-    const lastIndex = Math.max(0, _sessionSegments.length - 1);
-    _sessionCurrentIndex = lastIndex;
-    set({
-      playState: "stopped",
-      currentChunkIndex: lastIndex,
-      totalChunks: _sessionSegments.length,
-    });
-    get().onEnd?.();
-  };
+    player.onStateChange = (playState) => {
+      if (gen !== _sessionGeneration) return;
+      if (isStarting && playState === "stopped") return;
+      if (playState === "stopped") {
+        _activeTTS = null;
+      }
+      set({ playState });
+    };
 
-  let playback: void | Promise<void>;
-  try {
-    playback = player.speak(segments, config);
-  } catch (error) {
+    player.onChunkChange = (chunkIndex, total) => {
+      if (gen !== _sessionGeneration) return;
+      const absoluteIndex = startIndex + chunkIndex;
+      _sessionCurrentIndex = absoluteIndex;
+      set({
+        currentChunkIndex: absoluteIndex,
+        totalChunks: Math.max(_sessionSegments.length, total),
+      });
+    };
+
+    player.onEnd = () => {
+      if (gen !== _sessionGeneration) return;
+      _activeTTS = null;
+      const lastIndex = Math.max(0, _sessionSegments.length - 1);
+      _sessionCurrentIndex = lastIndex;
+      set({
+        playState: "stopped",
+        currentChunkIndex: lastIndex,
+        totalChunks: _sessionSegments.length,
+      });
+      get().onEnd?.();
+    };
+
+    let playback: void | Promise<void>;
+    try {
+      playback = player.speak(segments, engineConfig);
+    } catch (error) {
+      isStarting = false;
+      triggerFallback(error);
+      return;
+    }
     isStarting = false;
-    if (gen !== _sessionGeneration) return;
-    console.error("[TTS] play failed:", error);
-    _activeTTS = null;
-    set({ playState: "stopped" });
-    return;
-  }
-  isStarting = false;
-  void Promise.resolve(playback).catch((error) => {
-    if (gen !== _sessionGeneration) return;
-    console.error("[TTS] play failed:", error);
-    _activeTTS = null;
-    set({ playState: "stopped" });
-  });
+    void Promise.resolve(playback).catch((error) => {
+      triggerFallback(error);
+    });
+  };
+
+  attempt(0);
 }
 
 export interface TTSState {

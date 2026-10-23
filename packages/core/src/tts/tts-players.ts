@@ -974,6 +974,9 @@ export class EdgeTTSPlayer implements ITTSPlayer {
   private chunkStartTimers = new Set<ReturnType<typeof setTimeout>>();
   private activeSources = new Set<AudioBufferSourceNode>();
   private pausedAt = 0; // Date.now() when suspended (wall-clock ms)
+  /** Chunks that failed synthesis — a total failure must surface via onError
+   *  so the store's fallback chain (Edge → Google → System) can take over. */
+  private chunkFailureCount = 0;
   /** Monotonic per-run token, bumped on every speak() to invalidate the previous
    *  run's in-flight async continuations (mirrors DashScopeTTSPlayer). */
   private runId = 0;
@@ -982,6 +985,8 @@ export class EdgeTTSPlayer implements ITTSPlayer {
   onStateChange?: (state: "playing" | "paused" | "stopped") => void;
   onChunkChange?: (index: number, total: number) => void;
   onEnd?: () => void;
+  /** Total synthesis failure (no audio at all) — consumed by the store's fallback chain. */
+  onError?: (error: Error) => void;
 
   get playing() {
     return this._playing;
@@ -1017,6 +1022,7 @@ export class EdgeTTSPlayer implements ITTSPlayer {
     this.hasAudioData = false;
     this.playingNotified = false;
     this.pausedAt = 0;
+    this.chunkFailureCount = 0;
 
     this.audioCtx = new AudioContext();
     this.gainNode = this.audioCtx.createGain();
@@ -1026,7 +1032,12 @@ export class EdgeTTSPlayer implements ITTSPlayer {
     if (this.audioCtx.state === "suspended") {
       // 重入下（同步 stop()+speak()）后继 run 可能在此 await 期间 close 掉本 ctx，
       // 使 resume() reject；吞掉它——下方的 myRun !== this.runId 守卫本就会丢弃本 run。
-      await this.audioCtx.resume().catch(() => {});
+      // Bounded: headless/no-audio-device environments can hang resume() forever,
+      // which would freeze the whole speak pipeline — proceed after 300ms.
+      await Promise.race([
+        this.audioCtx.resume().catch(() => {}),
+        new Promise<void>((r) => setTimeout(r, 300)),
+      ]);
     }
     // A newer run may have superseded us during the resume() await.
     if (myRun !== this.runId) return;
@@ -1079,6 +1090,7 @@ export class EdgeTTSPlayer implements ITTSPlayer {
       } catch (err) {
         if (myRun !== this.runId) return;
         if ((err as Error)?.message === "aborted") return;
+        this.chunkFailureCount += 1;
         console.error("[Edge TTS] chunk error:", err);
       }
 
@@ -1088,6 +1100,28 @@ export class EdgeTTSPlayer implements ITTSPlayer {
 
     if (myRun !== this.runId) return;
     this.allChunksDone = true;
+
+    // Total synthesis failure (e.g. blocked WebSocket / IP-level blocks):
+    // every chunk failed and not a single audio byte arrived. Surface it via
+    // onError — per the ITTSPlayer contract this must NOT be followed by
+    // onEnd — so callers can degrade gracefully instead of failing silently.
+    if (!this.hasAudioData && this.chunkFailureCount > 0) {
+      const error = new Error(
+        `Edge TTS produced no audio (${this.chunkFailureCount}/${this.chunks.length} chunks failed)`,
+      );
+      this._playing = false;
+      this._paused = false;
+      if (this.checkEndTimer) {
+        clearInterval(this.checkEndTimer);
+        this.checkEndTimer = null;
+      }
+      this.cleanupAudio();
+      this.fetchBuffer.clear();
+      this.producerWake?.();
+      this.resetProducerWake();
+      this.onStateChange?.("stopped");
+      this.onError?.(error);
+    }
   }
 
   private async runProducer(

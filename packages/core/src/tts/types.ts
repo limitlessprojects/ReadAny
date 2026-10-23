@@ -2,7 +2,7 @@
  * TTS types and constants — shared across all platforms.
  */
 
-export type TTSEngine = "system" | "edge" | "dashscope" | "xiaomi" | "openai-compatible";
+export type TTSEngine = "system" | "edge" | "google" | "dashscope" | "xiaomi" | "openai-compatible";
 export type LegacyTTSEngine = TTSEngine | "browser";
 export type TTSProviderType = TTSEngine;
 export type TTSAudioFormat = "pcm16" | "wav" | "mp3";
@@ -24,6 +24,8 @@ export interface TTSConfig {
   pitch: number;
   /** Edge TTS voice ID (e.g. "zh-CN-XiaoxiaoNeural") */
   edgeVoice: string;
+  /** Google Translate TTS language code ("auto" detects per text; e.g. "en", "sw") */
+  googleTtsLang: string;
   /** DashScope API Key (optional, for high-quality TTS) */
   dashscopeApiKey: string;
   /** DashScope voice (e.g. "Cherry", "Ethan") */
@@ -84,6 +86,17 @@ export const TTS_PROVIDER_DEFINITIONS: TTSProviderDefinition[] = [
     id: "edge",
     label: "Edge TTS",
     description: "Microsoft neural voices, no API key required.",
+    category: "built-in",
+    requiresApiKey: false,
+    supportsVoice: true,
+    supportsStylePrompt: false,
+    supportsBaseUrl: false,
+    supportsStreaming: false,
+  },
+  {
+    id: "google",
+    label: "Google TTS",
+    description: "Google Translate voices — resilient fallback that works anywhere.",
     category: "built-in",
     requiresApiKey: false,
     supportsVoice: true,
@@ -158,6 +171,29 @@ export function normalizeXiaomiTTSVoice(voice: string | null | undefined): strin
   return DEFAULT_XIAOMI_TTS_VOICE;
 }
 
+export const GOOGLE_TTS_LANGS = [
+  { id: "auto", label: "Auto (detect)" },
+  { id: "en", label: "English (US)" },
+  { id: "en-GB", label: "English (UK)" },
+  { id: "sw", label: "Kiswahili" },
+  { id: "fr", label: "Français" },
+  { id: "es", label: "Español" },
+  { id: "de", label: "Deutsch" },
+  { id: "pt", label: "Português" },
+  { id: "ar", label: "العربية" },
+  { id: "hi", label: "हिन्दी" },
+  { id: "zh-CN", label: "中文" },
+  { id: "ja", label: "日本語" },
+  { id: "id", label: "Bahasa Indonesia" },
+] as const;
+
+export type GoogleTtsLang = (typeof GOOGLE_TTS_LANGS)[number]["id"];
+
+export function normalizeGoogleTtsLang(lang: string | null | undefined): string {
+  if (lang && lang !== "auto" && GOOGLE_TTS_LANGS.some((item) => item.id === lang)) return lang;
+  return "auto";
+}
+
 export const DEFAULT_TTS_CONFIG: TTSConfig = {
   engine: "edge",
   activeProfileId: "edge-default",
@@ -166,6 +202,7 @@ export const DEFAULT_TTS_CONFIG: TTSConfig = {
   rate: 1.0,
   pitch: 1.0,
   edgeVoice: "zh-CN-XiaoxiaoNeural",
+  googleTtsLang: "auto",
   dashscopeApiKey: "",
   dashscopeVoice: "Cherry",
   xiaomiApiKey: "",
@@ -190,6 +227,7 @@ export function normalizeTTSEngine(engine: LegacyTTSEngine | string | null | und
   if (
     engine === "system" ||
     engine === "edge" ||
+    engine === "google" ||
     engine === "dashscope" ||
     engine === "xiaomi" ||
     engine === "openai-compatible"
@@ -222,6 +260,12 @@ export function createDefaultTTSProfiles(config: Partial<TTSConfig> = {}): TTSPr
       name: "System Voice",
       provider: "system",
       voice: config.voiceName ?? DEFAULT_TTS_CONFIG.voiceName,
+    },
+    {
+      id: "google-default",
+      name: "Google TTS",
+      provider: "google",
+      voice: config.googleTtsLang ?? DEFAULT_TTS_CONFIG.googleTtsLang,
     },
     {
       id: "dashscope-default",
@@ -304,6 +348,8 @@ export function syncConfigFromActiveProfile(config: TTSConfig): TTSConfig {
 
   if (engine === "edge" && activeProfile.voice) {
     next.edgeVoice = activeProfile.voice;
+  } else if (engine === "google") {
+    next.googleTtsLang = normalizeGoogleTtsLang(activeProfile.voice ?? next.googleTtsLang);
   } else if (engine === "system") {
     next.voiceName = activeProfile.voice ?? "";
   } else if (engine === "dashscope") {
@@ -345,6 +391,7 @@ export function normalizeTTSConfig(config: PersistedTTSConfig | null | undefined
     rate: typeof config?.rate === "number" ? config.rate : DEFAULT_TTS_CONFIG.rate,
     pitch: typeof config?.pitch === "number" ? config.pitch : DEFAULT_TTS_CONFIG.pitch,
     edgeVoice: config?.edgeVoice ?? DEFAULT_TTS_CONFIG.edgeVoice,
+    googleTtsLang: normalizeGoogleTtsLang(config?.googleTtsLang ?? DEFAULT_TTS_CONFIG.googleTtsLang),
     dashscopeApiKey: config?.dashscopeApiKey ?? DEFAULT_TTS_CONFIG.dashscopeApiKey,
     dashscopeVoice: config?.dashscopeVoice ?? DEFAULT_TTS_CONFIG.dashscopeVoice,
     xiaomiApiKey: config?.xiaomiApiKey ?? DEFAULT_TTS_CONFIG.xiaomiApiKey,

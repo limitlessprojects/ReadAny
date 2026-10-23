@@ -4,10 +4,9 @@
  */
 import type { CitationPart, MessageV2, QuotePart } from "@readany/core/types/message";
 import { STREAM_METRICS_EVENT, getLastStreamMetrics, type StreamMetrics } from "@readany/core/ai";
-import { ArrowDown, Check, Copy, Quote, Square, Volume2 } from "lucide-react";
+import { ArrowDown, Check, Copy, Quote, Square, Volume2, Zap } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { edgeTTS, systemTTS } from "@/lib/tts/tts-service";
 import { useTTSStore } from "@/stores/tts-store";
 import { PartRenderer } from "./PartRenderer";
 import { StreamingIndicator } from "./StreamingIndicator";
@@ -282,26 +281,11 @@ function MessageBubble({ message, onCitationClick, isStreaming, isLast, currentS
 }
 
 /**
- * Rough Swahili detection — enough to auto-pick a sw-KE Edge voice when the
- * assistant answers in Swahili. Deliberately conservative: high-frequency
- * function words scored against text length.
+ * Assistant message actions: copy, read aloud, and a live speed badge.
+ *
+ * Speech routes through the TTS store so every message benefits from the
+ * engine fallback chain (Edge ↔ Google ↔ System) and the Swahili auto-voice.
  */
-const SWAHILI_MARKERS = [
-  " na ", " ya ", " wa ", " kwa ", " katika ", " ni ", " hii ", " kwa ",
-  " unaweza ", " tafadhali ", " asante ", " hapana ", " ndiyo ", " lakini ",
-  " kwa sababu ", " pia ", " sana ", " watu ", " kitu ", " sana ",
-];
-
-function looksLikeSwahili(text: string): boolean {
-  const lower = ` ${text.toLowerCase()} `;
-  let hits = 0;
-  for (const marker of SWAHILI_MARKERS) {
-    if (lower.includes(marker)) hits += 1;
-  }
-  return hits >= 4 && lower.length > 120;
-}
-
-/** Assistant message actions: copy, read aloud (TTS), and live speed badge. */
 function AssistantMessageActions({ message, isLast }: { message: MessageV2; isLast?: boolean }) {
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -310,7 +294,6 @@ function AssistantMessageActions({ message, isLast }: { message: MessageV2; isLa
     // seed from the module-level last measurement to avoid missing it.
     isLast ? getLastStreamMetrics() : null,
   );
-  const ttsConfig = useTTSStore((s) => s.config);
 
   useEffect(() => {
     if (!isLast) return;
@@ -330,8 +313,7 @@ function AssistantMessageActions({ message, isLast }: { message: MessageV2; isLa
 
   const handleSpeak = useCallback(() => {
     if (speaking) {
-      systemTTS.stop();
-      edgeTTS.stop();
+      useTTSStore.getState().stop();
       setSpeaking(false);
       return;
     }
@@ -343,19 +325,11 @@ function AssistantMessageActions({ message, isLast }: { message: MessageV2; isLa
       .replace(/[#*_>`~\[\]()]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+    const tts = useTTSStore.getState();
+    tts.setOnEnd(() => setSpeaking(false));
     setSpeaking(true);
-    const onEnd = () => setSpeaking(false);
-    if (ttsConfig.engine === "edge") {
-      const voice = looksLikeSwahili(spoken)
-        ? { ...ttsConfig, edgeVoice: "sw-KE-RafikiNeural" }
-        : ttsConfig;
-      edgeTTS.onEnd = onEnd;
-      void edgeTTS.speak(spoken, voice);
-    } else {
-      systemTTS.onEnd = onEnd;
-      systemTTS.speak(spoken, ttsConfig);
-    }
-  }, [message, speaking, ttsConfig]);
+    tts.play(spoken);
+  }, [message, speaking]);
 
   return (
     <div className="flex items-center gap-1 pt-0.5">
@@ -380,10 +354,11 @@ function AssistantMessageActions({ message, isLast }: { message: MessageV2; isLa
       </button>
       {isLast && metrics && metrics.chunks > 3 && (
         <span
-          className="ml-1 inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
-          title={`Time to first token ${metrics.ttftMs}ms · ${metrics.chunks} SSE chunks · ${metrics.totalMs}ms total`}
+          className="ml-1 inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/[0.07] px-1.5 py-0.5 font-mono text-[10px] leading-none text-emerald-600/90 dark:text-emerald-400/90"
+          title={`Streaming metrics — time to first token ${metrics.ttftMs}ms · ${metrics.chunks} chunks · ${metrics.totalMs}ms total`}
         >
-          ⚡ TTFT {metrics.ttftMs}ms · {Math.round((metrics.chunks / metrics.totalMs) * 1000)} tok/s
+          <Zap className="size-2.5" strokeWidth={2.5} />
+          {metrics.ttftMs}ms · {Math.round((metrics.chunks / metrics.totalMs) * 1000)} tok/s
         </span>
       )}
     </div>

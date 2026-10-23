@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import {
   DASHSCOPE_VOICES,
   EDGE_TTS_VOICES,
+  GOOGLE_TTS_LANGS,
   XIAOMI_TTS_VOICES,
   getSystemVoices,
 } from "@/lib/tts/tts-service";
@@ -309,6 +310,30 @@ export function TTSSettings() {
                         </SelectItem>
                       ))}
                     </div>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {config.engine === "google" && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-foreground">{t("tts.language", "Language")}</span>
+              <Select
+                value={config.googleTtsLang}
+                onValueChange={(v) => {
+                  updateActiveProfile({ voice: v });
+                  updateConfig({ googleTtsLang: v });
+                }}
+              >
+                <SelectTrigger className="w-[240px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {GOOGLE_TTS_LANGS.map((lang) => (
+                    <SelectItem key={lang.id} value={lang.id}>
+                      {lang.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

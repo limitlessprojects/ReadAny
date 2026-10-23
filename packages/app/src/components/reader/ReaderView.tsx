@@ -16,6 +16,7 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { ReadSettingsPanel } from "@/components/settings/ReadSettings";
 import { useReadingSession } from "@/hooks/use-reading-session";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
+import { useIsNarrowViewport } from "@/hooks/use-is-narrow-viewport";
 import { useResolvedSrc } from "@/hooks/use-resolved-src";
 import { hasSeenReaderTour, startReaderTour } from "@/lib/reader-tour";
 import { DocumentLoader } from "@/lib/reader/document-loader";
@@ -785,6 +786,8 @@ export function ReaderView({ bookId, tabId }: ReaderViewProps) {
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [showChat, setShowChat] = useState(false);
+  // Phone-width viewports get the chat as a full-screen sheet (see sidebar below)
+  const isNarrowViewport = useIsNarrowViewport();
   const [showSettings, setShowSettings] = useState(false);
   const [showTTS, setShowTTS] = useState(false);
   const [isReimporting, setIsReimporting] = useState(false);
@@ -3167,8 +3170,27 @@ export function ReaderView({ bookId, tabId }: ReaderViewProps) {
         )}
       </div>
 
-      {/* AI Chat sidebar — RIGHT side, resizable */}
-      {showChat && (
+      {/* AI Chat sidebar — RIGHT side, resizable. On phone-width viewports it
+          becomes a full-screen overlay sheet so the document keeps its full
+          width instead of being squeezed into a sliver. */}
+      {showChat && isNarrowViewport && (
+        <div className="fixed inset-0 z-50 flex animate-in fade-in slide-in-from-bottom-3 duration-250 flex-col bg-background">
+          <div className="flex h-12 shrink-0 items-center justify-between border-b border-border/40 px-3">
+            <span className="text-sm font-medium text-foreground">{t("chat.aiAssistant")}</span>
+            <button
+              type="button"
+              className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={() => setShowChat(false)}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <ChatPanel book={book} onNavigateToCitation={handleNavigateToCitation} />
+          </div>
+        </div>
+      )}
+      {showChat && !isNarrowViewport && (
         <div
           className="relative ml-1 flex shrink-0 flex-col overflow-hidden rounded-lg border border-border/60 bg-background shadow-sm"
           style={{ width: chatPanel.width }}

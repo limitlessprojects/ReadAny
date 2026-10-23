@@ -1,13 +1,35 @@
 /**
  * ChatInput — sageread-style rounded card input with deep thinking option
  * Supports attached context quotes that display as chips above the textarea.
+ * Includes guarded mic dictation (Web Speech API) where the browser supports it.
  */
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { AttachedQuote } from "@readany/core/types";
-import { Brain, EyeOff, Quote, Send, Square, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { Brain, EyeOff, Mic, Quote, Send, Square, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 export type { AttachedQuote };
+
+interface SpeechRecognitionLike {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: ((event: unknown) => void) | null;
+  onend: (() => void) | null;
+}
+
+/** Chrome/Edge expose SpeechRecognition; Firefox/Safari may not. */
+function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as Record<string, unknown>;
+  return (w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null) as
+    | (new () => SpeechRecognitionLike)
+    | null;
+}
 
 interface ChatInputProps {
   onSend: (
@@ -35,11 +57,67 @@ export function ChatInput({
   quotes = [],
   onRemoveQuote,
 }: ChatInputProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [value, setValue] = useState("");
   const [deepThinking, setDeepThinking] = useState(false);
   const [spoilerFree, setSpoilerFree] = useState(false);
+  const [listening, setListening] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  const speechSupported = useMemo(() => !!getSpeechRecognitionCtor(), []);
+
+  // Stop dictation when the input unmounts (tab switch etc.)
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
+    };
+  }, []);
+
+  const toggleDictation = useCallback(() => {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor) return;
+    // Abort any previous handle before starting a fresh one.
+    recognitionRef.current?.abort();
+    const recognition = new Ctor();
+    const baseLang = (i18n.language || navigator.language || "en-US").split("-")[0];
+    recognition.lang =
+      baseLang === "sw" ? "sw-KE" : i18n.language && i18n.language !== "en" ? i18n.language : "en-US";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i += 1) {
+        transcript += event.results[i]?.[0]?.transcript ?? "";
+      }
+      setValue(transcript);
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (el) {
+          el.style.height = "auto";
+          el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+        }
+      });
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = recognition;
+    setListening(true);
+    try {
+      recognition.start();
+    } catch {
+      setListening(false);
+      recognitionRef.current = null;
+    }
+  }, [listening, i18n.language]);
 
   const resolvedPlaceholder = placeholder || t("chat.askPlaceholder");
 
@@ -165,6 +243,21 @@ export function ChatInput({
               >
                 <EyeOff className="size-3" />
                 <span>{t("chat.spoilerFree")}</span>
+              </button>
+            )}
+            {speechSupported && (
+              <button
+                type="button"
+                onClick={toggleDictation}
+                title={listening ? t("chat.dictationStop", "Stop dictation") : t("chat.dictation", "Voice input")}
+                className={`flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors ${
+                  listening
+                    ? "border-destructive/40 bg-destructive/10 text-destructive"
+                    : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Mic className={`size-3 ${listening ? "animate-pulse" : ""}`} />
+                <span>{listening ? t("chat.dictationActive", "Listening…") : t("chat.dictation", "Voice")}</span>
               </button>
             )}
           </div>

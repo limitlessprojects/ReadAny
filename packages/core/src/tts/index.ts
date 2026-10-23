@@ -19,8 +19,10 @@ export {
   DEFAULT_XIAOMI_TTS_BASE_URL,
   DEFAULT_XIAOMI_TTS_VOICE,
   DASHSCOPE_VOICES,
+  GOOGLE_TTS_LANGS,
   getActiveTTSProfile,
   getTTSProviderDefinition,
+  normalizeGoogleTtsLang,
   normalizeTTSConfig,
   normalizeTTSEngine,
   normalizeXiaomiTTSVoice,
@@ -43,6 +45,13 @@ export { compareVoiceLanguage, getLocaleDisplayLabel, groupEdgeTTSVoices } from 
 // Edge TTS
 export { fetchEdgeTTSAudio, EDGE_TTS_VOICES } from "./edge-tts";
 export type { EdgeTTSVoice, EdgeTTSPayload } from "./edge-tts";
+
+// Google Translate TTS (resilience fallback engine)
+export {
+  GoogleTranslateTTSPlayer,
+  looksLikeSwahiliText,
+  resolveGoogleTtsLang,
+} from "./google-translate-tts";
 
 // Players
 export {
