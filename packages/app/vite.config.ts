@@ -3,7 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+
+// @ts-expect-error vite config runs in CJS context
+const require2 = createRequire(__filename);
+// ws export shape varies by version (v7: root = WebSocket + .Server;
+// v8: root = WebSocketServer + .WebSocket) — normalize both.
+const wsRoot = require2("ws");
+const UpstreamWS = wsRoot.WebSocket ?? wsRoot.default?.WebSocket ?? wsRoot;
+const WebSocketServer = wsRoot.WebSocketServer ?? wsRoot.Server ?? wsRoot.default?.WebSocketServer;
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -21,6 +29,65 @@ const pdfjsDist = path.resolve(__dirname, "../../node_modules/pdfjs-dist");
 const CEREBRAS_TARGET = process.env.CEREBRAS_API_TARGET || "http://127.0.0.1:8787";
 // @ts-expect-error process is a nodejs global
 const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY || "";
+
+/**
+ * Edge TTS relay plugin — browsers can't open the Microsoft speech WebSocket
+ * (the upgrade request needs specific Origin/UA headers the platform won't
+ * send). The web build connects to ws://<dev>/edge-tts-relay/... and this
+ * plugin tunnels the frames to wss://speech.platform.bing.com with the
+ * headers Edge expects. Only active in READANY_WEB=1 mode.
+ */
+function edgeTtsRelayPlugin(): Plugin {
+  const UPSTREAM = "wss://speech.platform.bing.com";
+  const HEADERS = {
+    Origin: "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0",
+  };
+  const wss = new WebSocketServer({ noServer: true });
+  return {
+    name: "edge-tts-relay",
+    configureServer(server) {
+      server.httpServer.on("upgrade", (req, socket, head) => {
+        const url = req.url || "";
+        if (!url.startsWith("/edge-tts-relay/")) return;
+        const upstreamPath = url.replace("/edge-tts-relay", "");
+        wss.handleUpgrade(req, socket, head, (client) => {
+          let upstream: InstanceType<typeof UpstreamWS>;
+          try {
+            upstream = new UpstreamWS(UPSTREAM + upstreamPath, { headers: HEADERS });
+          } catch (err) {
+            client.close(1011, "relay connect failed");
+            return;
+          }
+          const closeBoth = () => {
+            try { client.close(); } catch { /* already closed */ }
+            try { upstream.close(); } catch { /* already closed */ }
+          };
+          upstream.on("open", () => {
+            client.on("message", (data) => {
+              if (upstream.readyState === UpstreamWS.OPEN) upstream.send(data);
+            });
+            upstream.on("message", (data, isBinary) => {
+              if (client.readyState === UpstreamWS.OPEN) {
+                // ws message handler signature: (data, isBinary)
+                client.send(data, { binary: isBinary });
+              }
+            });
+          });
+          upstream.on("error", closeBoth);
+          client.on("error", closeBoth);
+          upstream.on("close", (code, reason) => {
+            try { client.close(code, reason); } catch { /* already closed */ }
+          });
+          client.on("close", (code, reason) => {
+            try { upstream.close(code, reason); } catch { /* already closed */ }
+          });
+        });
+      });
+    },
+  };
+}
 
 // The About dialog shows the Tauri framework version. @tauri-apps/api releases
 // in lockstep but can differ by a patch, and its package.json is not importable
@@ -53,7 +120,7 @@ export default defineConfig(async () => ({
     __TAURI_VERSION__: JSON.stringify(readTauriVersion()),
     __TS_VERSION__: JSON.stringify(readTypeScriptVersion()),
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), ...(WEB_SHIM ? [edgeTtsRelayPlugin()] : [])],
   worker: {
     format: "es",
   },

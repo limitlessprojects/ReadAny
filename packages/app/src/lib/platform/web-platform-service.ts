@@ -232,7 +232,19 @@ export class WebPlatformService implements IPlatformService {
 
   createWebSocket(url: string, _options?: WebSocketOptions): Promise<IWebSocket> {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(url);
+      // Edge TTS (speech.platform.bing.com) rejects browser-originated
+      // upgrade requests; the vite /edge-tts-relay tunnels it server-side
+      // with the headers Edge expects.
+      let wsUrl = url;
+      try {
+        const parsed = new URL(url, window.location.origin);
+        if (parsed.hostname === "speech.platform.bing.com") {
+          wsUrl = `ws://${window.location.host}/edge-tts-relay${parsed.pathname}${parsed.search}`;
+        }
+      } catch {
+        // keep original url
+      }
+      const ws = new WebSocket(wsUrl);
       let messageHandler: ((data: string | ArrayBuffer) => void) | null = null;
       let closeHandler: (() => void) | null = null;
       let errorHandler: ((error: unknown) => void) | null = null;
