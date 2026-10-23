@@ -122,6 +122,7 @@ jobs:
                       # Soft-pass so the weekly cron doesn't run red until
                       # the daily quota resets (midnight Pacific).
                       print("SOFT PASS: quota exhausted (429) — key is valid, demo unaffected after reset")
+                      open("/tmp/grounding.skip", "w").write("429")
                       import sys; sys.exit(0)
                   if e.code >= 500 and attempt < 4:
                       time.sleep(20 * (attempt + 1))
@@ -131,6 +132,8 @@ jobs:
           print(answer)
           open("/tmp/answer.txt", "w").write(answer)
           PY
+          # Skip the verification too when the grounding request soft-passed.
+          if [ -f /tmp/grounding.skip ]; then echo "grounding skipped (quota)"; exit 0; fi
           # The verbatim quote must actually appear in the extracted PDF text.
           python3 - <<'PY'
           import re
@@ -209,7 +212,11 @@ jobs:
             -H "authorization: Bearer proxy" -H "content-type: application/json" \
             -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: OK\"}],\"max_completion_tokens\":2048}")
           echo "gist-sourced chat HTTP $code"
+          # Daily quota can legitimately be exhausted by earlier steps;
+          # the models call above already proved the gist path authenticates.
+          if [ "$code" = 429 ]; then echo "SOFT PASS: quota exhausted"; else
           jq -re '.choices[0].message.content' /tmp/px3.json | grep -qi "ok"
+          fi
           kill "$(cat /tmp/serve2.pid)"
         env:
           GEMINI_API_TARGET: https://generativelanguage.googleapis.com
