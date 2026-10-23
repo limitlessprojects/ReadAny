@@ -6,11 +6,11 @@
 #   dev-web-ctl.sh status  → print state
 PORT=5183
 LOG=/tmp/vite-web.log
-APP=/home/z/my-project/ReadAny/packages/app
+APP="$(cd "$(dirname "$0")/.." && pwd)"/packages/app
 
 # Load local demo secrets (gitignored) — GEMINI_API_KEY / GEMINI_API_TARGET /
 # CEREBRAS_* so the vite proxies can inject keys server-side.
-ENV_FILE=/home/z/my-project/ReadAny/.env.demo.local
+ENV_FILE="$(cd "$(dirname "$0")/.." && pwd)"/.env.demo.local
 if [ -f "$ENV_FILE" ]; then
   set -a
   # shellcheck disable=SC1090
@@ -46,7 +46,7 @@ start() {
   local mock_pid
   mock_pid=$(ss -tlnp 2>/dev/null | grep ":8787" | grep -oP 'pid=\K[0-9]+' | head -1)
   if [ -z "$mock_pid" ]; then
-    node /home/z/my-project/ReadAny/scripts/mock-llm-server.mjs 8787 > /tmp/mock-llm.log 2>&1 &
+    node "$(cd "$(dirname "$0")/.." && pwd)"/scripts/mock-llm-server.mjs 8787 > /tmp/mock-llm.log 2>&1 &
     sleep 0.5
   fi
   : > "$LOG"
