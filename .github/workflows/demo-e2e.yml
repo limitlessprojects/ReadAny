@@ -45,12 +45,14 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          # gemini-2.5-flash is deprecated for new users — prefer 3.8 explicitly.
-          MODEL=$(jq -r 'if any(.models[]; .name == "models/gemini-3.8-flash") then "gemini-3.8-flash" else ([.models[].name | select(test("gemini-.*-flash"))] | map(select(test("tts|image|embedding|learnlang";"i") | not)) | .[0] | sub("^models/";"")) end' /tmp/models.json)
+          # Prefer flash-LITE: gemini-3.8-flash free tier is 20 RPD (CI runs
+          # would exhaust it), flash-lite models get hundreds of RPD free.
+          MODEL=$(jq -r 'if any(.models[]; .name == "models/gemini-3.1-flash-lite") then "gemini-3.1-flash-lite" elif any(.models[]; .name == "models/gemini-3.8-flash") then "gemini-3.8-flash" else ([.models[].name | select(test("gemini-.*-flash"))] | map(select(test("tts|image|embedding|learnlang";"i") | not)) | .[0] | sub("^models/";"")) end' /tmp/models.json)
           echo "Using model: $MODEL"
           echo "$MODEL" > /tmp/model-name.txt
           echo "$MODEL
-          gemini-3.5-flash" > /tmp/model-candidates.txt
+          gemini-3.5-flash
+          gemini-3.8-flash" > /tmp/model-candidates.txt
           # Retry with backoff — gemini endpoints occasionally 503 ("high demand").
           chat_call() {
             curl -sS -o /tmp/chat.json -w "%{http_code}" \

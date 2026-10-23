@@ -543,11 +543,18 @@ export async function seedWebDemoAIEndpointIfUntouched(): Promise<void> {
     apiKey: "proxy", // placeholder — /gemini-api proxy injects the real key
     baseUrl: "https://generativelanguage.googleapis.com",
     useExactRequestUrl: false,
-    // Model list verified against the live API on 2026-10-23 (older
-    // gemini-3.8-flash-lite / gemini-3-pro IDs return 404).
-    models: ["gemini-3.8-flash", "gemini-3.5-flash"],
+    // Model list verified against the live API on 2026-10-24. The default
+    // is flash-LITE: free-tier daily quota for gemini-3.8-flash is only
+    // 20 RPD (exhausted by a handful of demo chats), while flash-lite
+    // models get hundreds per day.
+    models: [
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash-lite",
+      "gemini-3.8-flash",
+      "gemini-3.5-flash",
+    ],
     modelsFetched: true,
   });
   store.setActiveEndpoint("default");
-  store.setActiveModel("gemini-3.8-flash");
+  store.setActiveModel("gemini-3.1-flash-lite");
 }
