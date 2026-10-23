@@ -154,8 +154,17 @@ export async function handleProviderProxy(req: Request, env: ProxyEnv): Promise<
     return jsonError(`provider proxy: unknown target ${PATH_PREFIXES[prefix]}`, 500);
   }
 
-  const upstreamPath = url.pathname.slice(prefix.length) || "/";
+  let upstreamPath = url.pathname.slice(prefix.length) || "/";
   const query = new URLSearchParams(url.search);
+
+  // OpenAI-compat compatibility shim: clients that speak the standard
+  // /v1/chat/completions dialect (e.g. the Android APK, OpenAI SDKs pointed
+  // at https://<site>/gemini-api) get transparently mapped onto Gemini's
+  // OpenAI-compatible surface at /v1beta/openai/*. Native v1beta paths
+  // (TTS, models list, generateContent) pass through untouched.
+  if (PATH_PREFIXES[prefix] === "gemini" && upstreamPath.startsWith("/v1/")) {
+    upstreamPath = "/v1beta/openai/" + upstreamPath.slice("/v1/".length);
+  }
 
   // Settings "test connection" builds native Gemini URLs with ?key=<key>;
   // swap the placeholder for the server key there too.

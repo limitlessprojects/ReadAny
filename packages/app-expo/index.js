@@ -5,6 +5,7 @@ import * as ExpoCrypto from "expo-crypto";
 import { registerRootComponent } from "expo";
 import TrackPlayer from "react-native-track-player";
 import App from "./src/App";
+import { seedMobileDemoAIEndpointIfUntouched } from "./src/stores/settings-store";
 import { PlaybackService } from "./src/services/PlaybackService";
 
 function bytesToString(bytes) {
@@ -70,6 +71,8 @@ if (!cryptoObject.subtle) {
     },
   });
 }
+
+seedMobileDemoAIEndpointIfUntouched().catch((e) => console.warn("[seed] demo AI endpoint bootstrap failed:", e));
 
 registerRootComponent(App);
 TrackPlayer.registerPlaybackService(() => PlaybackService);

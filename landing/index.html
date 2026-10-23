@@ -245,9 +245,16 @@
       </div>
       <div class="dl-grid">
         <div class="dl">
+          <span class="tag">Android</span>
+          <h3>Install the APK</h3>
+          <p>A real Android app — download, tap to install (allow "install from this source"), done. AI works out of the box, no key needed.</p>
+          <a class="btn btn-primary" id="apk-btn" href="https://github.com/limitlessprojects/ReadAny/releases/latest/download/ReadAny.apk">Download APK ↓</a>
+          <p class="apk-status" id="apk-status" style="font-size:12px;opacity:.7;margin-top:6px"></p>
+        </div>
+        <div class="dl">
           <span class="tag">Easiest</span>
           <h3>Web app — any device</h3>
-          <p>Open it in a browser and it's ready. On Android/iOS, "Add to Home Screen" turns it into a standalone app with its own icon.</p>
+          <p>Open it in a browser and it's ready. On Android/iOS, "Add to Home Screen" turns it into a standalone app with its own icon. First open downloads ~2&nbsp;MB — give it a few seconds on mobile data.</p>
           <a class="btn btn-primary" href="/app/">Open the web app</a>
         </div>
         <div class="dl">
@@ -291,6 +298,25 @@
           box.innerHTML = '<a href="' + appUrl + '" style="font-size:12px;word-break:break-all;text-align:center;padding:8px">' + appUrl + "</a>";
         }
         document.getElementById("qr-cap").textContent = "scan to open " + appUrl.replace(/^https?:\/\//, "");
+      })();
+
+      // APK availability probe — show size, or hide the card state quietly.
+      (function () {
+        var btn = document.getElementById("apk-btn");
+        var status = document.getElementById("apk-status");
+        if (!btn || !status) return;
+        fetch("https://api.github.com/repos/limitlessprojects/ReadAny/releases/latest", { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+          .then(function (rel) {
+            var asset = (rel.assets || []).find(function (a) { return a.name === "ReadAny.apk"; });
+            if (!asset) { status.textContent = ""; return; }
+            status.textContent = "v" + (asset.download_count ? "" : "") + (rel.tag_name || "") +
+              " · " + Math.round(asset.size / 1048576) + " MB · updated " +
+              new Date(asset.updated_at).toLocaleDateString();
+          })
+          .catch(function () {
+            status.textContent = "APK is building — check back in a few minutes";
+          });
       })();
     </script>
   </body>

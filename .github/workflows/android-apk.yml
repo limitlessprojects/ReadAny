@@ -1,0 +1,102 @@
+name: Android APK
+
+# Builds an installable release APK of the Expo/RN app on a GitHub runner
+# (no EAS account needed) and attaches it to the "readany-android" release,
+# so the landing page can offer a direct download:
+#   https://github.com/limitlessprojects/ReadAny/releases/latest/download/ReadAny.apk
+#
+# Signing: the Expo template's release build signs with the auto-generated
+# debug keystore — perfectly fine for sideloading a demo APK.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, cerebras-demo]
+    paths:
+      - "packages/app-expo/**"
+      - "packages/core/**"
+      - "packages/foliate-js/**"
+      - ".github/workflows/android-apk.yml"
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Bundle reader assets + configure production variant
+        working-directory: packages/app-expo
+        run: |
+          APP_VARIANT=production pnpm run build:reader
+          APP_VARIANT=production node scripts/configure-native-variant.js
+
+      - name: Expo prebuild (android)
+        working-directory: packages/app-expo
+        env:
+          APP_VARIANT: production
+        run: pnpm exec expo prebuild -p android --no-install
+
+      - name: Gradle assembleRelease
+        working-directory: packages/app-expo/android
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Collect APK
+        run: |
+          APK=$(find packages/app-expo/android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "found: $APK"
+          cp "$APK" ReadAny.apk
+          ls -lh ReadAny.apk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReadAny-apk
+          path: ReadAny.apk
+
+      - name: Attach to rolling "readany-android" release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=readany-android
+          # Delete previous release + tag (rolling latest build).
+          release_id=$(curl -sS "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/$TAG" \
+            -H "Authorization: Bearer $GH_TOKEN" | jq -r '.id // empty')
+          if [ -n "$release_id" ]; then
+            curl -sS -X DELETE "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/$release_id" \
+              -H "Authorization: Bearer $GH_TOKEN"
+          fi
+          git push origin ":refs/tags/$TAG" 2>/dev/null || true
+          release=$(curl -sS -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" \
+            -H "Authorization: Bearer $GH_TOKEN" -H "content-type: application/json" -d "{
+              \"tag_name\": \"$TAG\",
+              \"target_commitish\": \"${GITHUB_SHA}\",
+              \"name\": \"ReadAny — latest Android build\",
+              \"body\": \"Installable demo APK (sideload: allow installs from this source). AI works out of the box via the free demo proxy. Built from commit ${GITHUB_SHA}.\",
+              \"prerelease\": false
+            }")
+          upload_url=$(echo "$release" | jq -r '.upload_url' | sed 's/{.*}//')
+          curl -sS -X POST "$upload_url?name=ReadAny.apk" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "content-type: application/vnd.android.package-archive" \
+            --data-binary @ReadAny.apk | jq -r '.browser_download_url'

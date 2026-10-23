@@ -652,3 +652,40 @@ setTimeout(() => {
     void useSettingsStore.getState().loadApiKeys();
   }
 }, 500);
+
+/**
+ * Mobile-demo bootstrap (APK builds): if the AI config still holds the
+ * untouched default (empty OpenAI placeholder), point it at the demo site's
+ * Gemini proxy so chat works out of the box — no BYOK required for a first
+ * run. The literal "proxy" apiKey is a placeholder that the Netlify edge
+ * function swaps for the server-held key; user-configured endpoints are
+ * never touched. Waits for store hydration, runs once.
+ */
+export async function seedMobileDemoAIEndpointIfUntouched(): Promise<void> {
+  for (let i = 0; i < 100; i += 1) {
+    if (useSettingsStore.getState()._hasHydrated) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  const store = useSettingsStore.getState();
+  const { endpoints } = store.aiConfig;
+  const isUntouchedDefault =
+    endpoints.length === 1 &&
+    endpoints[0].id === "default" &&
+    endpoints[0].provider === "openai" &&
+    !endpoints[0].apiKey &&
+    endpoints[0].models.length === 0;
+  if (!isUntouchedDefault) return;
+
+  store.updateEndpoint("default", {
+    name: "Google Gemini (free demo)",
+    provider: "openai",
+    apiKey: "proxy", // placeholder — the demo site's edge proxy injects the real key
+    baseUrl: "https://cerebras-demo1.netlify.app/gemini-api",
+    useExactRequestUrl: false,
+    // Model list verified against the live API on 2026-10-23.
+    models: ["gemini-3.8-flash", "gemini-3.5-flash"],
+    modelsFetched: true,
+  });
+  store.setActiveEndpoint("default");
+  store.setActiveModel("gemini-3.8-flash");
+}
