@@ -6,6 +6,7 @@ import { useResolvedSrc, useSyncVersion } from "@/hooks/use-resolved-src";
 import type { HighlightWithBook } from "@/lib/db/database";
 import { getBook as getBookRecord } from "@/lib/db/database";
 import { openDesktopBook } from "@/lib/library/open-book";
+import { publicAsset } from "@/lib/public-asset";
 import { useAnnotationStore } from "@/stores/annotation-store";
 import { useAppStore } from "@/stores/app-store";
 import { useLibraryStore } from "@/stores/library-store";
@@ -37,7 +38,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 import { ExportDropdown } from "./ExportDropdown";
-import { publicAsset } from "@/lib/public-asset";
 
 type DetailTab = "notes" | "highlights";
 

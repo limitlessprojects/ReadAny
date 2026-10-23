@@ -13,7 +13,7 @@
 // @ts-expect-error — Netlify global is injected by the edge runtime.
 declare const Netlify: { env: { get(key: string): string | undefined } };
 
-import { handleProviderProxy, type ProxyEnv } from "./proxy-core.ts";
+import { type ProxyEnv, handleProviderProxy } from "./proxy-core.ts";
 
 const netlifyEnv: ProxyEnv = {
   get: (key: string) => {
@@ -28,5 +28,11 @@ const netlifyEnv: ProxyEnv = {
 export default async (req: Request): Promise<Response> => handleProviderProxy(req, netlifyEnv);
 
 export const config = {
-  path: ["/gemini-api/*", "/cerebras-api/*", "/anthropic-api/*", "/openai-api/*", "/gtranslate-tts/*"],
+  path: [
+    "/gemini-api/*",
+    "/cerebras-api/*",
+    "/anthropic-api/*",
+    "/openai-api/*",
+    "/gtranslate-tts/*",
+  ],
 };

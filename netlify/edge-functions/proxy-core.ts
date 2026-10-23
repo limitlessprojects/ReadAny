@@ -84,7 +84,12 @@ const RESPONSE_HEADERS = [
 /** The seeded demo credential meaning "the server holds the real key". */
 function isProxyPlaceholder(value: string | null | undefined): boolean {
   if (!value) return false;
-  return value.replace(/^Bearer /i, "").trim().toLowerCase() === "proxy";
+  return (
+    value
+      .replace(/^Bearer /i, "")
+      .trim()
+      .toLowerCase() === "proxy"
+  );
 }
 
 function jsonError(message: string, status: number): Response {
@@ -98,7 +103,7 @@ export async function handleProviderProxy(req: Request, env: ProxyEnv): Promise<
   const url = new URL(req.url);
   let prefix = "";
   for (const candidate of Object.keys(PATH_PREFIXES)) {
-    if (url.pathname === candidate || url.pathname.startsWith(candidate + "/")) {
+    if (url.pathname === candidate || url.pathname.startsWith(`${candidate}/`)) {
       prefix = candidate;
       break;
     }

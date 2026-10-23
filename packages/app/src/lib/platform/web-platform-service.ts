@@ -11,9 +11,9 @@
 import type {
   FetchOptions,
   FilePickerOptions,
-  IWebSocket,
   IDatabase,
   IPlatformService,
+  IWebSocket,
   WebSocketOptions,
 } from "@readany/core/services";
 import { WebDatabase } from "./web-database";
@@ -73,7 +73,10 @@ export function rewriteProviderUrl(url: string): string {
 export const rewriteCerebrasUrl = rewriteProviderUrl;
 
 /** Browser fetch with provider-proxy rewriting — used as streaming fetch. */
-export const webFetch: typeof globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+export const webFetch: typeof globalThis.fetch = ((
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const rewritten = rewriteProviderUrl(url);
   if (rewritten !== url) {
@@ -240,7 +243,11 @@ export class WebPlatformService implements IPlatformService {
     return globalThis.fetch(rewriteProviderUrl(url), options as RequestInit | undefined);
   }
 
-  async downloadFile(url: string, filePath: string, options?: { headers?: Record<string, string> }): Promise<void> {
+  async downloadFile(
+    url: string,
+    filePath: string,
+    options?: { headers?: Record<string, string> },
+  ): Promise<void> {
     const response = await globalThis.fetch(url, { headers: options?.headers });
     if (!response.ok) throw new Error(`downloadFile: ${response.status} ${response.statusText}`);
     const bytes = new Uint8Array(await response.arrayBuffer());
@@ -333,7 +340,11 @@ export class WebPlatformService implements IPlatformService {
 
   // ---- File sharing / download ----
 
-  async shareOrDownloadFile(content: string, filename: string, mimeType: string): Promise<string | null> {
+  async shareOrDownloadFile(
+    content: string,
+    filename: string,
+    mimeType: string,
+  ): Promise<string | null> {
     try {
       const blob = new Blob([content], { type: mimeType });
       const url = URL.createObjectURL(blob);
@@ -354,11 +365,7 @@ export class WebPlatformService implements IPlatformService {
   async flushAllDatabases(): Promise<void> {
     const promises: Promise<void>[] = [];
     for (const promise of this.dbInstances.values()) {
-      promises.push(
-        promise
-          .then((db) => db.flushForUnload())
-          .catch(() => {}),
-      );
+      promises.push(promise.then((db) => db.flushForUnload()).catch(() => {}));
     }
     await Promise.all(promises);
   }

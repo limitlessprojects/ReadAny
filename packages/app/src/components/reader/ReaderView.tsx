@@ -14,9 +14,9 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
  * - Rendering the FoliateViewer and surrounding UI (toolbar, footer, panels)
  */
 import { ReadSettingsPanel } from "@/components/settings/ReadSettings";
+import { useIsNarrowViewport } from "@/hooks/use-is-narrow-viewport";
 import { useReadingSession } from "@/hooks/use-reading-session";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
-import { useIsNarrowViewport } from "@/hooks/use-is-narrow-viewport";
 import { useResolvedSrc } from "@/hooks/use-resolved-src";
 import { hasSeenReaderTour, startReaderTour, stopReaderTour } from "@/lib/reader-tour";
 import { DocumentLoader } from "@/lib/reader/document-loader";

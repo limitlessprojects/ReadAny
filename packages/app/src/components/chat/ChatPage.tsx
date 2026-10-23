@@ -5,6 +5,7 @@ import { ConfigGuideDialog, type ConfigGuideType } from "@/components/shared/Con
 import { useStreamingChat } from "@/hooks/use-streaming-chat";
 import { getBook as getBookRecord } from "@/lib/db/database";
 import { openDesktopBook } from "@/lib/library/open-book";
+import { publicAsset } from "@/lib/public-asset";
 import { useChatReaderStore } from "@/stores/chat-reader-store";
 import { useChatStore } from "@/stores/chat-store";
 import { useLibraryStore } from "@/stores/library-store";
@@ -44,7 +45,6 @@ import { ChatInput } from "./ChatInput";
 import { ContextPopover } from "./ContextPopover";
 import { MessageList } from "./MessageList";
 import { ModelSelector } from "./ModelSelector";
-import { publicAsset } from "@/lib/public-asset";
 
 function ThreadsSidebar({
   open,

@@ -10,21 +10,28 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { ConfigTransfer } from "./ConfigTransfer";
 import { useSettingsStore } from "@/stores/settings-store";
 import { getAIEndpointRequestPreview, testAIEndpoint } from "@readany/core/ai";
 import { getPlatformService } from "@readany/core/services";
 import type { AIEndpoint, AIProviderType } from "@readany/core/types";
 import {
-  getDefaultBaseUrl,
   PROVIDER_CONFIGS,
-  providerSupportsExactRequestUrl,
+  getDefaultBaseUrl,
   providerRequiresApiKey,
+  providerSupportsExactRequestUrl,
 } from "@readany/core/utils";
 import { AlertCircle, CheckCircle2, Copy, Loader2, Plus, RefreshCw, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  type MouseEvent as ReactMouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { ConfigTransfer } from "./ConfigTransfer";
 
 function createEndpointId(): string {
   return `ep-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -32,22 +39,25 @@ function createEndpointId(): string {
 
 function useProviderOptions(): { value: AIProviderType; label: string }[] {
   const { t } = useTranslation();
-  return useMemo(() => [
-    { value: "openai", label: "OpenAI" },
-    { value: "cerebras", label: "Cerebras" },
-    { value: "atlascloud", label: "Atlas Cloud" },
-    { value: "anthropic", label: "Anthropic" },
-    { value: "google", label: "Google Gemini" },
-    { value: "deepseek", label: "DeepSeek" },
-    { value: "ollama", label: "Ollama" },
-    { value: "lmstudio", label: "LM Studio" },
-    { value: "openrouter", label: "OpenRouter" },
-    { value: "siliconflow", label: "SiliconFlow" },
-    { value: "moonshot", label: "Moonshot (Kimi)" },
-    { value: "zhipu", label: t("settings.ai_provider_zhipu") },
-    { value: "aliyun", label: t("settings.ai_provider_aliyun") },
-    { value: "custom", label: t("settings.ai_provider_custom") },
-  ], [t]);
+  return useMemo(
+    () => [
+      { value: "openai", label: "OpenAI" },
+      { value: "cerebras", label: "Cerebras" },
+      { value: "atlascloud", label: "Atlas Cloud" },
+      { value: "anthropic", label: "Anthropic" },
+      { value: "google", label: "Google Gemini" },
+      { value: "deepseek", label: "DeepSeek" },
+      { value: "ollama", label: "Ollama" },
+      { value: "lmstudio", label: "LM Studio" },
+      { value: "openrouter", label: "OpenRouter" },
+      { value: "siliconflow", label: "SiliconFlow" },
+      { value: "moonshot", label: "Moonshot (Kimi)" },
+      { value: "zhipu", label: t("settings.ai_provider_zhipu") },
+      { value: "aliyun", label: t("settings.ai_provider_aliyun") },
+      { value: "custom", label: t("settings.ai_provider_custom") },
+    ],
+    [t],
+  );
 }
 
 /** Searchable model list with filter input */
@@ -88,7 +98,9 @@ function ModelSearchableList({
       />
       <div className="max-h-36 overflow-y-auto border rounded-md bg-background">
         {filtered.length === 0 ? (
-          <div className="px-3 py-2 text-xs text-muted-foreground text-center">{t("settings.ai_noMatchingResults")}</div>
+          <div className="px-3 py-2 text-xs text-muted-foreground text-center">
+            {t("settings.ai_noMatchingResults")}
+          </div>
         ) : (
           filtered.map((m) => {
             const isActive = m === currentActive;
@@ -101,13 +113,18 @@ function ModelSearchableList({
                 role="button"
                 tabIndex={0}
               >
-                <span className={`truncate ${isActive ? "text-primary font-medium" : "text-foreground"}`}>
+                <span
+                  className={`truncate ${isActive ? "text-primary font-medium" : "text-foreground"}`}
+                >
                   {m}
                 </span>
                 <button
                   type="button"
                   className="ml-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                  onClick={(e) => { e.stopPropagation(); onRemove(m); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(m);
+                  }}
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -116,7 +133,9 @@ function ModelSearchableList({
           })
         )}
       </div>
-      <div className="text-[10px] text-muted-foreground">{t("settings.ai_totalModels", { count: models.length })}</div>
+      <div className="text-[10px] text-muted-foreground">
+        {t("settings.ai_totalModels", { count: models.length })}
+      </div>
     </div>
   );
 }
@@ -166,9 +185,12 @@ function EndpointCard({
     setConfirmingRemove(false);
     onRemove(endpoint.id);
   };
-  useEffect(() => () => {
-    if (confirmTimer.current) window.clearTimeout(confirmTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (confirmTimer.current) window.clearTimeout(confirmTimer.current);
+    },
+    [],
+  );
   const [testMessage, setTestMessage] = useState("");
 
   useEffect(() => {
@@ -178,8 +200,7 @@ function EndpointCard({
   }, [endpoint.models, testModel]);
 
   const requestPreview = useMemo(
-    () =>
-      getAIEndpointRequestPreview(endpoint, testModel === "__auto__" ? undefined : testModel),
+    () => getAIEndpointRequestPreview(endpoint, testModel === "__auto__" ? undefined : testModel),
     [endpoint, testModel],
   );
   const supportsExactRequestUrl = providerSupportsExactRequestUrl(endpoint.provider);
@@ -191,8 +212,7 @@ function EndpointCard({
       await getPlatformService().copyToClipboard(requestPreview);
       toast.success(t("notes.copiedToClipboard"));
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : t("common.failed", "失败");
+      const message = error instanceof Error ? error.message : t("common.failed", "失败");
       toast.error(message);
     }
   }, [requestPreview, t]);
@@ -378,7 +398,9 @@ function EndpointCard({
               id={`apiKey-${endpoint.id}`}
               value={endpoint.apiKey}
               onChange={(e) => onUpdate(endpoint.id, { apiKey: e.target.value })}
-              placeholder={PROVIDER_CONFIGS[endpoint.provider || "openai"]?.keyPlaceholder || "sk-..."}
+              placeholder={
+                PROVIDER_CONFIGS[endpoint.provider || "openai"]?.keyPlaceholder || "sk-..."
+              }
               className="h-8 text-sm"
             />
           </div>
@@ -399,7 +421,10 @@ function EndpointCard({
               id={`baseUrl-${endpoint.id}`}
               value={endpoint.baseUrl}
               onChange={(e) => onUpdate(endpoint.id, { baseUrl: e.target.value })}
-              placeholder={PROVIDER_CONFIGS[endpoint.provider || "openai"]?.placeholder || "https://api.example.com"}
+              placeholder={
+                PROVIDER_CONFIGS[endpoint.provider || "openai"]?.placeholder ||
+                "https://api.example.com"
+              }
               className="h-8 text-sm"
             />
             {supportsExactRequestUrl && (
@@ -425,13 +450,13 @@ function EndpointCard({
             )}
             {!exactRequestUrlEnabled &&
               PROVIDER_CONFIGS[endpoint.provider || "openai"]?.needsV1Suffix && (
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                {t(
-                  "settings.ai_baseUrlHint",
-                  "OpenAI-compatible endpoints append /v1 by default. End the URL with / to use your custom path as-is.",
-                )}
-              </div>
-            )}
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {t(
+                    "settings.ai_baseUrlHint",
+                    "OpenAI-compatible endpoints append /v1 by default. End the URL with / to use your custom path as-is.",
+                  )}
+                </div>
+              )}
             {endpoint.provider === "ollama" && (
               <div className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
                 {t(
@@ -492,22 +517,22 @@ function EndpointCard({
                 variant="outline"
                 size="sm"
                 className="h-7 text-xs gap-1"
-              disabled={
-                exactRequestUrlEnabled ||
-                (providerRequiresApiKey(endpoint.provider) && !endpoint.apiKey) ||
-                endpoint.modelsFetching
-              }
-              onClick={() => onFetchModels(endpoint.id)}
-            >
-              {endpoint.modelsFetching ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3 w-3" />
-              )}
-              {endpoint.modelsFetching
-                ? t("settings.ai_fetchingModels")
-                : t("settings.ai_fetchModels")}
-            </Button>
+                disabled={
+                  exactRequestUrlEnabled ||
+                  (providerRequiresApiKey(endpoint.provider) && !endpoint.apiKey) ||
+                  endpoint.modelsFetching
+                }
+                onClick={() => onFetchModels(endpoint.id)}
+              >
+                {endpoint.modelsFetching ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+                {endpoint.modelsFetching
+                  ? t("settings.ai_fetchingModels")
+                  : t("settings.ai_fetchModels")}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -874,7 +899,10 @@ export function AISettings() {
             }
           }}
           validate={(d) =>
-            typeof d === "object" && d !== null && "endpoints" in d && Array.isArray((d as Record<string, unknown>).endpoints)
+            typeof d === "object" &&
+            d !== null &&
+            "endpoints" in d &&
+            Array.isArray((d as Record<string, unknown>).endpoints)
           }
         />
       </section>

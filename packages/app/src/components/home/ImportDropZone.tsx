@@ -2,15 +2,24 @@
  * ImportDropZone — empty state with import button and drag-drop
  */
 import { DesktopImportActions } from "@/components/home/DesktopImportActions";
+import { publicAsset } from "@/lib/public-asset";
 import { useLibraryStore } from "@/stores/library-store";
 import { Loader2, Plus } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { publicAsset } from "@/lib/public-asset";
 
 const SUPPORTED_DROP_EXTS = new Set([
-  "epub", "pdf", "mobi", "azw", "azw3", "fb2", "fbz", "txt", "umd", "cbz",
+  "epub",
+  "pdf",
+  "mobi",
+  "azw",
+  "azw3",
+  "fb2",
+  "fbz",
+  "txt",
+  "umd",
+  "cbz",
 ]);
 
 export function ImportDropZone() {
@@ -91,7 +100,11 @@ export function ImportDropZone() {
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <span className="flex items-center gap-1.5">
-                {isImporting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                {isImporting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
                 {isImporting ? t("library.importing", "导入中...") : t("home.importBooks")}
               </span>
             </button>

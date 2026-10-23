@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { publicAsset } from "@/lib/public-asset";
 import {
   checkForUpdate,
   downloadAndInstall,
@@ -30,10 +31,10 @@ import {
   Download,
   ExternalLink,
   Github,
+  type LucideIcon,
   RefreshCw,
   Shield,
   Zap,
-  type LucideIcon,
 } from "lucide-react";
 /**
  * AboutSettings — 关于页面
@@ -42,7 +43,6 @@ import React, { useEffect, useRef, useState } from "react";
 // Timer cleanup for the copy feedback flag (unmount-safe).
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { publicAsset } from "@/lib/public-asset";
 
 type TechStackItem = {
   name: string;
@@ -57,7 +57,12 @@ type TechStackItem = {
 const TECH_STACK: TechStackItem[] = [
   { name: "Tauri", version: __TAURI_VERSION__, descKey: "settings.techStackTauri", icon: Shield },
   { name: "React", version: React.version, descKey: "settings.techStackReact", icon: Code2 },
-  { name: "TypeScript", version: __TS_VERSION__, descKey: "settings.techStackTypeScript", icon: Zap },
+  {
+    name: "TypeScript",
+    version: __TS_VERSION__,
+    descKey: "settings.techStackTypeScript",
+    icon: Zap,
+  },
   { name: "Foliate", descKey: "settings.techStackFoliate", icon: BookOpen },
 ];
 

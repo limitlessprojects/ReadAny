@@ -1,6 +1,7 @@
 import { ExportDropdown } from "@/components/notes/ExportDropdown";
 import { Button } from "@/components/ui/button";
 import { MarkdownEditor } from "@/components/ui/markdown-editor";
+import { publicAsset } from "@/lib/public-asset";
 import { useAnnotationStore } from "@/stores/annotation-store";
 import { useLibraryStore } from "@/stores/library-store";
 import { useNotebookStore } from "@/stores/notebook-store";
@@ -26,7 +27,6 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { publicAsset } from "@/lib/public-asset";
 
 interface NotebookPanelProps {
   bookId: string;
@@ -112,11 +112,7 @@ export function NotebookPanel({
       });
       if (mutation.kind === "update") {
         updateHighlight(mutation.id, mutation.updates);
-        onAddAnnotation?.(
-          editingHighlight.cfi,
-          editingHighlight.color,
-          mutation.updates.note,
-        );
+        onAddAnnotation?.(editingHighlight.cfi, editingHighlight.color, mutation.updates.note);
       }
       clearPending();
     }

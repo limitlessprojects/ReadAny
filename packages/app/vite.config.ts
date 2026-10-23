@@ -1,9 +1,9 @@
-import { createRequire } from "node:module";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type Plugin } from "vite";
+import { type Plugin, defineConfig } from "vite";
 
 // @ts-expect-error vite config runs in CJS context
 const require2 = createRequire(__filename);
@@ -44,7 +44,12 @@ const OPENAI_TARGET = process.env.OPENAI_API_TARGET || "https://api.openai.com";
  *  forwarded upstream. Real (BYOK) keys pass through untouched. */
 function isProxyPlaceholder(value: string | undefined | null): boolean {
   if (!value) return false;
-  return value.replace(/^Bearer /i, "").trim().toLowerCase() === "proxy";
+  return (
+    value
+      .replace(/^Bearer /i, "")
+      .trim()
+      .toLowerCase() === "proxy"
+  );
 }
 
 /** Rewrite `?key=proxy` in the proxied URL (the settings "test connection"
@@ -67,7 +72,8 @@ function injectBearerOnProxyReq(key: string) {
   return (proxyReq: import("node:http").ClientRequest) => {
     if (!key) return;
     const auth = proxyReq.getHeader("authorization");
-    const hasRealKey = typeof auth === "string" && auth.length > "Bearer ".length && !isProxyPlaceholder(auth);
+    const hasRealKey =
+      typeof auth === "string" && auth.length > "Bearer ".length && !isProxyPlaceholder(auth);
     if (!hasRealKey) {
       proxyReq.setHeader("Authorization", `Bearer ${key}`);
     }
@@ -92,7 +98,8 @@ function injectGeminiAuthOnProxyReq(key: string) {
     const nativeSurface = !pathname.includes("/openai/");
     const auth = proxyReq.getHeader("authorization");
     const goog = proxyReq.getHeader("x-goog-api-key");
-    const realAuth = typeof auth === "string" && auth.length > "Bearer ".length && !isProxyPlaceholder(auth);
+    const realAuth =
+      typeof auth === "string" && auth.length > "Bearer ".length && !isProxyPlaceholder(auth);
     const realGoog = typeof goog === "string" && goog.length > 0 && !isProxyPlaceholder(goog);
     if (nativeSurface) {
       if (query.has("key")) {
@@ -149,8 +156,16 @@ function edgeTtsRelayPlugin(): Plugin {
             return;
           }
           const closeBoth = () => {
-            try { client.close(); } catch { /* already closed */ }
-            try { upstream.close(); } catch { /* already closed */ }
+            try {
+              client.close();
+            } catch {
+              /* already closed */
+            }
+            try {
+              upstream.close();
+            } catch {
+              /* already closed */
+            }
           };
           upstream.on("open", () => {
             client.on("message", (data) => {
@@ -166,10 +181,18 @@ function edgeTtsRelayPlugin(): Plugin {
           upstream.on("error", closeBoth);
           client.on("error", closeBoth);
           upstream.on("close", (code, reason) => {
-            try { client.close(code, reason); } catch { /* already closed */ }
+            try {
+              client.close(code, reason);
+            } catch {
+              /* already closed */
+            }
           });
           client.on("close", (code, reason) => {
-            try { upstream.close(code, reason); } catch { /* already closed */ }
+            try {
+              upstream.close(code, reason);
+            } catch {
+              /* already closed */
+            }
           });
         });
       });
