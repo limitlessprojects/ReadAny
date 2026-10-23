@@ -17,6 +17,10 @@
         "label": "Edge TTS",
         "description": "Microsoft Neural 음성, API 키가 필요 없어요."
       },
+      "google": {
+        "label": "Google TTS",
+        "description": "Google 번역 음성 — 어느 네트워크에서든 동작하는 폴백 엔진입니다."
+      },
       "system": {
         "label": "시스템 음성",
         "description": "이 기기에 설치된 시스템 음성을 사용해요."

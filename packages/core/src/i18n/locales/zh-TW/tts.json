@@ -17,6 +17,10 @@
         "label": "Edge TTS",
         "description": "微軟神經網路語音，無需 API 密鑰"
       },
+      "google": {
+        "label": "谷歌語音",
+        "description": "谷歌翻譯語音 —— 任意網路環境都可用的可靠後備引擎。"
+      },
       "system": {
         "label": "系統語音",
         "description": "使用目前裝置已安裝的系統語音"

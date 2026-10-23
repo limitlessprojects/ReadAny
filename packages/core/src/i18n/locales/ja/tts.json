@@ -17,6 +17,10 @@
         "label": "Edge TTS",
         "description": "Microsoft Neural 音声。APIキーは不要です。"
       },
+      "google": {
+        "label": "Google TTS",
+        "description": "Google翻訳の音声 — ネットワークを問わず使えるフォールバックエンジン。"
+      },
       "system": {
         "label": "システム音声",
         "description": "このデバイスにインストール済みの音声を使用します。"

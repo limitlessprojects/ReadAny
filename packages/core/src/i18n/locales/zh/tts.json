@@ -17,6 +17,10 @@
         "label": "Edge TTS",
         "description": "微软神经网络语音，无需 API 密钥"
       },
+      "google": {
+        "label": "谷歌语音",
+        "description": "谷歌翻译语音 —— 任意网络环境都可用的可靠后备引擎。"
+      },
       "system": {
         "label": "系统语音",
         "description": "使用当前设备已安装的系统语音"

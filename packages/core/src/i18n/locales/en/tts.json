@@ -17,6 +17,10 @@
         "label": "Edge TTS",
         "description": "Microsoft neural voices, no API key required."
       },
+      "google": {
+        "label": "Google TTS",
+        "description": "Google Translate voices — resilient fallback that works on any network."
+      },
       "system": {
         "label": "System Voice",
         "description": "Use voices installed on this device."

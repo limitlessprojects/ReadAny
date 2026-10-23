@@ -17,6 +17,10 @@
         "label": "Edge TTS",
         "description": "Voix neuronales Microsoft, sans clé API."
       },
+      "google": {
+        "label": "Google TTS",
+        "description": "Voix Google Translate — solution de secours fiable sur n'importe quel réseau."
+      },
       "system": {
         "label": "Voix système",
         "description": "Utilise les voix installées sur cet appareil."
