@@ -595,6 +595,7 @@
           "fail": "ReadAny Skill no está instalada en {{path}}."
         }
       }
-    }
+    },
+    "ai_endpointRemoved": "Endpoint eliminado"
   }
 }

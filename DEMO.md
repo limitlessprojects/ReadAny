@@ -32,7 +32,7 @@ On a fresh browser profile the app **auto-configures the Gemini endpoint** (`gem
 | Base URL | `https://generativelanguage.googleapis.com/v1beta/openai/` |
 | Auth | `Authorization: Bearer <GEMINI_API_KEY>` |
 | Streaming | SSE, `stream: true` (measured by the TTFT badge) |
-| Current models | `gemini-3.8-flash`, `gemini-3.8-flash-lite` (older `gemini-2.5-*` is closed to new keys) |
+| Current models | `gemini-3.8-flash`, `gemini-3.5-flash` (verified live 2026-10-23; `gemini-3.8-flash-lite` / `gemini-3-pro` are 404) |
 | Key format | `AIza...` (legacy) or `AQ.Ab8...` (2025+ format) — both accepted |
 | Geo note | "User location is not supported" = egress region not in the allowlist (e.g. HK datacenter IPs). Kenya/Nigeria/EU/US are fine. |
 
@@ -51,6 +51,45 @@ export CEREBRAS_API_KEY=csk-...
 In the app: **Settings → AI** → pick the provider endpoint + model (`gemini-3.8-flash` / `llama-3.3-70b`).
 
 > Offline / geo-blocked dev: the default targets are the local `scripts/mock-llm-server.mjs` (Gemini-shaped OpenAI SSE mock, natural EN/Swahili replies) so the entire pipeline stays testable from anywhere. Set the real targets when you have connectivity.
+
+---
+
+## Deploy to Netlify (production demo, ~3 minutes)
+
+The repo ships a full deploy kit: `netlify.toml`, an Edge Function provider proxy (`netlify/edge-functions/`), and `scripts/netlify-build.sh` (assembles landing page at `/` + the SPA under `/app/`).
+
+1. Push this branch to GitHub and in Netlify: **Add site → Import an existing project → pick `limitlessprojects/ReadAny`** (branch `cerebras-demo`). Build command and publish dir come from `netlify.toml` — accept defaults.
+2. Set ONE environment variable (Site configuration → Environment variables, mark it **Sensitive**):
+
+   ```
+   GEMINI_API_KEY=AQ.Ab8...        # free-tier key from aistudio.google.com
+   ```
+
+   Optional: `CEREBRAS_API_KEY` (server-held Cerebras for the competition variant) and `*_API_TARGET` overrides (mock/mirror endpoints) — see `netlify.toml` comments.
+
+3. Deploy. Result:
+
+   | Path | What |
+   |---|---|
+   | `/` | Mobile-first landing page (QR → `/app/`, install steps) |
+   | `/app/` | The reader web app, installable as a PWA |
+   | `/gemini-api/*` | Edge proxy → Gemini, key injected server-side |
+   | `/cerebras-api/*` `/anthropic-api/*` `/openai-api/*` | BYOK passthrough proxies |
+
+**Key custody & rotation:** the key lives in Netlify env vars (sensitive) and is read only by the Edge Function — it never ships in the JS bundle and never reaches the browser. Rotating a key = editing that one env var and redeploying. No code changes.
+
+**Free tier first, BYOK below it:** visitors get the seeded Google Gemini endpoint out of the box (server key injected per-request; the client only ever holds a `"proxy"` placeholder credential). Adding your own key (Settings → AI → Add Endpoint: **Cerebras / Anthropic / OpenAI / Google Gemini / …**) overrides it for your session — BYOK keys are sent per-request through the same-origin proxy and are never persisted server-side. Deleting an endpoint is a two-tap confirm with an Undo toast, so the free tier can't be lost to a fat-finger.
+
+Edge Functions were chosen over Lambda for the proxy because chat answers stream longer than the 10s sync-function ceiling; edge isolates stream SSE for the full response duration. Gemini also needs egress from a supported region — Netlify edge POPs (US/EU) qualify.
+
+### Local production rehearsal
+
+```bash
+bash scripts/netlify-build.sh     # builds + assembles dist/ exactly like Netlify
+node scripts/serve-dist.mjs       # → http://127.0.0.1:8788 (same proxy core, SPA fallbacks, .env)
+```
+
+Note: the vite build is memory-hungry (~4GB peak with esbuild sidecars). `scripts/netlify-build.sh` caps the V8 heap (`--max-old-space-size=1792`), disables per-chunk gzip size reporting and throttles rollup file ops — without those, 4GB CI boxes get OOM-killed (exit 137) during "rendering chunks". Close browser daemons before building locally.
 
 ---
 

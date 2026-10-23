@@ -10,6 +10,11 @@ fi
 
 pnpm install --frozen-lockfile
 
+# The app bundle is large (~6MB main chunk); unbounded V8 heap growth during
+# rollup's chunk-render phase gets the process OOM-killed on 4GB boxes
+# (exit 137 "Killed"). Cap the old-space so V8 GCs aggressively instead.
+export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=1792"
+
 # The app's build:web script pins READANY_WEB=1 and base=/app/ internally.
 READANY_WEB=1 pnpm --filter app build:web
 

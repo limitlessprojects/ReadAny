@@ -597,6 +597,7 @@
           "fail": "ReadAny 스킬이 {{path}}에 설치되어 있지 않아요."
         }
       }
-    }
+    },
+    "ai_endpointRemoved": "엔드포인트가 제거되었습니다"
   }
 }

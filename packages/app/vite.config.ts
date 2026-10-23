@@ -257,6 +257,16 @@ export default defineConfig(async () => ({
   // Web deploys serve the SPA under /app/ so the repo root of the published
   // site can host the landing page. Desktop/Tauri builds keep "/".
   base: WEB_SHIM ? "/app/" : "/",
+  build: {
+    // reportCompressedSize gzip-compresses every chunk in memory just to
+    // print sizes — on a ~6MB main chunk that is enough to OOM-kill the build
+    // on 4GB boxes (exit 137 during "rendering chunks"). Sizes are noise here.
+    reportCompressedSize: false,
+    rollupOptions: {
+      // Fewer concurrent file ops = lower transform-phase peak memory.
+      maxParallelFileOps: 4,
+    },
+  },
   server: {
     port: 1420,
     strictPort: true,

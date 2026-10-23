@@ -597,6 +597,7 @@
           "fail": "ReadAny Skill 未安装：{{path}}。"
         }
       }
-    }
+    },
+    "ai_endpointRemoved": "端点已移除"
   }
 }

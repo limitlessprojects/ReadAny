@@ -22,7 +22,7 @@ import {
   providerRequiresApiKey,
 } from "@readany/core/utils";
 import { AlertCircle, CheckCircle2, Copy, Loader2, Plus, RefreshCw, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -34,6 +34,7 @@ function useProviderOptions(): { value: AIProviderType; label: string }[] {
   const { t } = useTranslation();
   return useMemo(() => [
     { value: "openai", label: "OpenAI" },
+    { value: "cerebras", label: "Cerebras" },
     { value: "atlascloud", label: "Atlas Cloud" },
     { value: "anthropic", label: "Anthropic" },
     { value: "google", label: "Google Gemini" },
@@ -148,6 +149,26 @@ function EndpointCard({
   const [newModelName, setNewModelName] = useState("");
   const [testModel, setTestModel] = useState("__auto__");
   const [testState, setTestState] = useState<"idle" | "testing" | "success" | "error">("idle");
+  // Two-tap delete: a 28px trash icon next to other actions is an easy
+  // fat-finger target on phones, and removing the seeded demo endpoint with
+  // no confirmation left users with a permanently broken free tier. First
+  // tap arms the button, second tap (within 3s) actually removes.
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const confirmTimer = useRef<number | null>(null);
+  const handleRemoveTap = (e: ReactMouseEvent) => {
+    e.stopPropagation();
+    if (!confirmingRemove) {
+      setConfirmingRemove(true);
+      confirmTimer.current = window.setTimeout(() => setConfirmingRemove(false), 3000);
+      return;
+    }
+    if (confirmTimer.current) window.clearTimeout(confirmTimer.current);
+    setConfirmingRemove(false);
+    onRemove(endpoint.id);
+  };
+  useEffect(() => () => {
+    if (confirmTimer.current) window.clearTimeout(confirmTimer.current);
+  }, []);
   const [testMessage, setTestMessage] = useState("");
 
   useEffect(() => {
@@ -273,11 +294,14 @@ function EndpointCard({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(endpoint.id);
-            }}
+            className={`h-7 w-7 transition-colors ${
+              confirmingRemove
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : "text-muted-foreground hover:text-destructive"
+            }`}
+            onClick={handleRemoveTap}
+            title={confirmingRemove ? "Tap again to remove" : "Remove endpoint"}
+            aria-label={confirmingRemove ? "Tap again to remove endpoint" : "Remove endpoint"}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
@@ -601,6 +625,38 @@ export function AISettings() {
 
   const activeEndpoint = aiConfig.endpoints.find((ep) => ep.id === aiConfig.activeEndpointId);
 
+  /** Remove with an Undo toast. Deleting the last endpoint (e.g. the seeded
+   *  demo Gemini) previously left the app with no AI and no way back short of
+   *  clearing storage — an 8s Undo covers the fat-finger without nagging
+   *  users who deliberately switch to BYOK-only. */
+  const handleRemoveEndpointWithUndo = useCallback(
+    (id: string) => {
+      const stateBefore = useSettingsStore.getState().aiConfig;
+      const removed = stateBefore.endpoints.find((ep) => ep.id === id);
+      const wasActive = stateBefore.activeEndpointId === id;
+      const previousModel = stateBefore.activeModel;
+      removeEndpoint(id);
+      if (!removed) return;
+      toast(t("settings.ai_endpointRemoved", "Endpoint removed"), {
+        description: removed.name || removed.provider,
+        duration: 8000,
+        action: {
+          label: t("common.undo", "Undo"),
+          onClick: () => {
+            addEndpoint(removed);
+            if (wasActive) {
+              setActiveEndpoint(removed.id);
+              if (previousModel && removed.models.includes(previousModel)) {
+                setActiveModel(previousModel);
+              }
+            }
+          },
+        },
+      });
+    },
+    [aiConfig.activeEndpointId, addEndpoint, removeEndpoint, setActiveEndpoint, setActiveModel, t],
+  );
+
   const handleAddEndpoint = useCallback(() => {
     const defaultProvider: AIProviderType = "openai";
     const config = PROVIDER_CONFIGS[defaultProvider];
@@ -672,7 +728,7 @@ export function AISettings() {
               isExpanded={expandedId === ep.id}
               activeModel={aiConfig.activeModel}
               onUpdate={updateEndpoint}
-              onRemove={removeEndpoint}
+              onRemove={handleRemoveEndpointWithUndo}
               onFetchModels={handleFetchModels}
               onSetActive={setActiveEndpoint}
               onSetActiveModel={setActiveModel}
