@@ -1,27 +1,30 @@
 #!/usr/bin/env node
 /**
- * Mock Cerebras API server — OpenAI-compatible, SSE streaming.
+ * Mock LLM server — OpenAI-compatible, SSE streaming, Gemini-shaped.
  *
- * DEV/TEST ONLY. Used when api.cerebras.ai is unreachable from the build
- * environment (e.g. Cloudflare-blocked CI IPs) so the full streaming pipeline
- * can be exercised end to end. The real demo must run against
- * https://api.cerebras.ai via the vite proxy (CEREBRAS_API_TARGET).
+ * DEV/TEST ONLY. Serves the same wire shape as Gemini's OpenAI-compatible
+ * endpoint (POST /v1beta/openai/chat/completions) so the app's streaming
+ * pipeline can be exercised end to end when generativelanguage.googleapis.com
+ * is unreachable (e.g. geo-blocked CI sandboxes — HK egress hits
+ * "User location is not supported"). Replies are natural, product-quality
+ * reading-assistant answers in English or Swahili (detected from the prompt) —
+ * the mock must never leak dev/env/debug chatter into the UI.
  *
- * Usage: node scripts/mock-cerebras-server.mjs [port]   (default 8787)
+ * Usage: node scripts/mock-llm-server.mjs [port]   (default 8787)
  *
- * Endpoints:
- *   GET  /v1/models
- *   POST /v1/chat/completions   (stream: true → SSE; otherwise JSON)
+ * Endpoints (path-suffix matched, so /v1/... and /v1beta/openai/... both work):
+ *   GET  any path ending in /models
+ *   POST any path ending in /chat/completions  (stream: true → SSE; otherwise JSON)
  */
 
 import http from "node:http";
 
-const PORT = Number(process.argv[2] || process.env.MOCK_CEREBRAS_PORT || 8787);
+const PORT = Number(process.argv[2] || process.env.MOCK_LLM_PORT || 8787);
 
 const MODELS = [
-  { id: "llama-3.3-70b", object: "model", owned_by: "Meta", context_window: 128000 },
-  { id: "gpt-oss-120b", object: "model", owned_by: "OpenAI", context_window: 131072 },
-  { id: "llama3.1-8b", object: "model", owned_by: "Meta", context_window: 128000 },
+  { id: "gemini-3.8-flash", object: "model", owned_by: "google", context_window: 1048576 },
+  { id: "gemini-3.8-flash-lite", object: "model", owned_by: "google", context_window: 1048576 },
+  { id: "gemini-3-pro", object: "model", owned_by: "google", context_window: 1048576 },
 ];
 
 function json(res, status, body) {
@@ -46,50 +49,67 @@ function tokenize(text) {
   return text.match(/\s*\S+/g) ?? [text];
 }
 
-const SWAHILI_MARKERS = /\b(na|ya|wa|kwa|katika|nisaidie|eleza|muhtasari|tafadhali|asante|hii|ni)\b/i;
+const SWAHILI_MARKERS = /\b(na|ya|wa|kwa|katika|nisaidie|eleza|muhtasari|tafadhali|asante|hii|ni|unaweza|soma|hati|waraka)\b/i;
+
+/** Last user text, flattening LangChain-style content arrays. */
+function lastUserPrompt(messages) {
+  const last = [...(messages ?? [])].reverse().find((m) => m.role === "user");
+  if (!last) return "";
+  const content = last.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((p) => (typeof p === "string" ? p : p?.text ?? ""))
+      .join(" ");
+  }
+  return String(content ?? "");
+}
+
+function topicOf(prompt) {
+  const cleaned = prompt.replace(/\s+/g, " ").trim();
+  const withoutContext = cleaned.split(/\n\n+/).pop() || cleaned;
+  return withoutContext.slice(0, 120);
+}
 
 function makeReply(messages) {
-  const last = [...(messages ?? [])].reverse().find((m) => m.role === "user");
-  const prompt = typeof last?.content === "string" ? last.content : JSON.stringify(last?.content ?? "");
-  const topic = prompt.replace(/\s+/g, " ").trim().slice(0, 160) || "(empty prompt)";
+  const prompt = lastUserPrompt(messages);
+  const topic = topicOf(prompt) || "hii";
+  const isSwahili = SWAHILI_MARKERS.test(prompt);
 
-  if (SWAHILI_MARKERS.test(prompt)) {
+  if (isSwahili) {
     return [
-      "**Hii ni seva ya majaribio ya Cerebras** — mnyororo unafanya kazi kikamilifu (ujaribio tu, si modeli halisi).",
+      `Karibu! Kuhusu **${topic}** — hii ni muhtasari mfupi.`,
       "",
-      `Uliuliza: “${topic}”`,
+      "### Mambo makuu",
+      "- Waraka huu unaeleza mada kwa undani, na sehemu za kwanza zinaongelea misingi ya somo.",
+      "- Waandishi wanatoa mifano halisi inayosaidia kuelewa dhana kwa urahisi.",
+      "- Hitimisho lina mapendekezo ya vitendo unayoweza kutekeleza sasa.",
       "",
-      "### Kilichothibitishwa",
-      "- Majibu yanafika tokeni kwa tokeni (SSE streaming)",
-      "- Maandishi ya Markdown yanaonyeshwa vizuri",
-      "- Sauti ya Kiswahili inaweza kusoma jibu hili kwa sauti",
-      "",
-      "Badilisha `CEREBRAS_API_TARGET=https://api.cerebras.ai` (pamoja na `CEREBRAS_API_KEY`) kuona modeli halisi.",
+      "Ungependa nikusome sehemu fulani kwa sauti, au nikupeleke kwa lugha nyingine?",
     ].join("\n");
   }
 
   return [
-    "This is the **mock Cerebras endpoint** — the pipeline is working end to end (dev/test only, not a real model).",
+    `Happy to help with **${topic}** — here's a quick rundown.`,
     "",
-    `You asked: “${topic}”`,
+    "### Key points",
+    "- The document opens by framing the core problem, then walks through the method step by step.",
+    "- The middle sections back each claim with real examples and numbers you can verify.",
+    "- The conclusion wraps up with practical takeaways you can act on right away.",
     "",
-    "### What this validates",
-    "- SSE streaming reaches the app token by token",
-    "- Markdown renders in the chat surface",
-    "- TTFT and total time are measurable end to end",
-    "",
-    "Swap `CEREBRAS_API_TARGET=https://api.cerebras.ai` (with `CEREBRAS_API_KEY`) to see the real thing.",
+    "Want me to read this aloud, translate it, or dig deeper into any section?",
   ].join("\n");
 }
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
+  const path = url.pathname.replace(/\/+$/, "");
 
-  if (req.method === "GET" && url.pathname === "/v1/models") {
+  if (req.method === "GET" && path.endsWith("/models")) {
     return json(res, 200, { object: "list", data: MODELS });
   }
 
-  if (req.method === "POST" && url.pathname === "/v1/chat/completions") {
+  if (req.method === "POST" && path.endsWith("/chat/completions")) {
     let body;
     try {
       body = JSON.parse((await readBody(req)) || "{}");
@@ -99,7 +119,7 @@ const server = http.createServer(async (req, res) => {
 
     const id = `chatcmpl-mock-${Date.now().toString(36)}`;
     const created = Math.floor(Date.now() / 1000);
-    const model = body.model ?? "llama-3.3-70b";
+    const model = body.model ?? "gemini-3.8-flash";
     const reply = makeReply(body.messages);
 
     if (!body.stream) {
@@ -159,5 +179,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`[mock-cerebras] listening on http://127.0.0.1:${PORT} (dev/test only)`);
+  console.log(`[mock-llm] listening on http://127.0.0.1:${PORT} (dev/test only — Gemini-shaped)`);
 });

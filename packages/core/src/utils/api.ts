@@ -63,7 +63,7 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     defaultBaseUrl: "https://generativelanguage.googleapis.com",
     needsV1Suffix: false,
     placeholder: "https://generativelanguage.googleapis.com",
-    keyPlaceholder: "AIza...",
+    keyPlaceholder: "AIza... / AQ.Ab8...",
   },
   ollama: {
     id: "ollama",

@@ -509,3 +509,40 @@ export const useSettingsStore = create<SettingsState>()(
       }),
   }), undefined, migrateSettingsState),
 );
+
+/**
+ * Web-demo bootstrap: if the AI config still holds the untouched default
+ * (empty OpenAI placeholder), point it at Gemini so chat works out of the box
+ * — no settings spelunking on a fresh browser. The API key is injected
+ * server-side by the /gemini-api vite proxy (GEMINI_API_KEY env); real keys
+ * never enter the client bundle. User-configured endpoints are never touched.
+ * Waits for store hydration, runs once, no-op on desktop.
+ */
+export async function seedWebDemoAIEndpointIfUntouched(): Promise<void> {
+  // Hydration is async (loadFromFS); wait for it before deciding anything.
+  for (let i = 0; i < 100; i += 1) {
+    if (useSettingsStore.getState()._hasHydrated) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  const store = useSettingsStore.getState();
+  const { endpoints } = store.aiConfig;
+  const isUntouchedDefault =
+    endpoints.length === 1 &&
+    endpoints[0].id === "default" &&
+    endpoints[0].provider === "openai" &&
+    !endpoints[0].apiKey &&
+    endpoints[0].models.length === 0;
+  if (!isUntouchedDefault) return;
+
+  store.updateEndpoint("default", {
+    name: "Google Gemini",
+    provider: "google",
+    apiKey: "proxy", // placeholder — /gemini-api proxy injects the real key
+    baseUrl: "https://generativelanguage.googleapis.com",
+    useExactRequestUrl: false,
+    models: ["gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3-pro"],
+    modelsFetched: true,
+  });
+  store.setActiveEndpoint("default");
+  store.setActiveModel("gemini-3.8-flash");
+}

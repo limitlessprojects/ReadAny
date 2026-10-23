@@ -8,6 +8,16 @@ PORT=5183
 LOG=/tmp/vite-web.log
 APP=/home/z/my-project/ReadAny/packages/app
 
+# Load local demo secrets (gitignored) — GEMINI_API_KEY / GEMINI_API_TARGET /
+# CEREBRAS_* so the vite proxies can inject keys server-side.
+ENV_FILE=/home/z/my-project/ReadAny/.env.demo.local
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
 port_pid() {
   ss -tlnp 2>/dev/null | grep ":$PORT" | grep -oP 'pid=\K[0-9]+' | head -1
 }
@@ -32,6 +42,13 @@ stop() {
 
 start() {
   stop > /dev/null 2>&1
+  # Ensure the Gemini-shaped mock is up (default /gemini-api + /cerebras-api target).
+  local mock_pid
+  mock_pid=$(ss -tlnp 2>/dev/null | grep ":8787" | grep -oP 'pid=\K[0-9]+' | head -1)
+  if [ -z "$mock_pid" ]; then
+    node /home/z/my-project/ReadAny/scripts/mock-llm-server.mjs 8787 > /tmp/mock-llm.log 2>&1 &
+    sleep 0.5
+  fi
   : > "$LOG"
   (cd "$APP" && READANY_WEB=1 ../../node_modules/.bin/vite --port $PORT --host 127.0.0.1 >> "$LOG" 2>&1 &)
   # verify OUR process is ready: log must contain "ready in"

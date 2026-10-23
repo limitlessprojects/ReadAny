@@ -38,16 +38,26 @@ const DATA_ROOT = "/data";
 const IMPORT_DIR = "/imports";
 
 /**
- * Rewrite provider API URLs onto the dev-server proxy path. Cerebras is the
- * demo's flagship provider: browsers can't call api.cerebras.ai cross-origin,
- * and routing through the vite proxy keeps the API key server-side
- * (CEREBRAS_API_KEY env) or at least same-origin.
+ * Rewrite provider API URLs onto the dev-server proxy path. Browsers can't
+ * call these hosts cross-origin, and routing through the vite proxy keeps
+ * API keys server-side (CEREBRAS_API_KEY / GEMINI_API_KEY env) or at least
+ * same-origin:
+ *  - api.cerebras.ai                    → /cerebras-api  (Cerebras cloud)
+ *  - generativelanguage.googleapis.com  → /gemini-api    (Gemini, OpenAI-compat)
+ *  - translate.google.com               → /gtranslate-tts (Google TTS fallback)
  */
-export function rewriteCerebrasUrl(url: string): string {
+const PROVIDER_PROXY_HOSTS: Record<string, string> = {
+  "api.cerebras.ai": "/cerebras-api",
+  "generativelanguage.googleapis.com": "/gemini-api",
+  "translate.google.com": "/gtranslate-tts",
+};
+
+export function rewriteProviderUrl(url: string): string {
   try {
     const parsed = new URL(url, window.location.origin);
-    if (parsed.hostname === "api.cerebras.ai") {
-      return "/cerebras-api" + parsed.pathname + parsed.search;
+    const prefix = PROVIDER_PROXY_HOSTS[parsed.hostname];
+    if (prefix) {
+      return prefix + parsed.pathname + parsed.search;
     }
     return url;
   } catch {
@@ -55,10 +65,13 @@ export function rewriteCerebrasUrl(url: string): string {
   }
 }
 
+/** Back-compat alias — the Cerebras rewrite was generalized to all providers. */
+export const rewriteCerebrasUrl = rewriteProviderUrl;
+
 /** Browser fetch with provider-proxy rewriting — used as streaming fetch. */
 export const webFetch: typeof globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-  const rewritten = rewriteCerebrasUrl(url);
+  const rewritten = rewriteProviderUrl(url);
   if (rewritten !== url) {
     return globalThis.fetch(rewritten, init);
   }
@@ -220,7 +233,7 @@ export class WebPlatformService implements IPlatformService {
   // ---- Network ----
 
   fetch(url: string, options?: FetchOptions): Promise<Response> {
-    return globalThis.fetch(rewriteCerebrasUrl(url), options as RequestInit | undefined);
+    return globalThis.fetch(rewriteProviderUrl(url), options as RequestInit | undefined);
   }
 
   async downloadFile(url: string, filePath: string, options?: { headers?: Record<string, string> }): Promise<void> {

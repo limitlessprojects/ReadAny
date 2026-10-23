@@ -35,6 +35,7 @@ export type { FontState } from "./font-store";
 
 // Persisted stores (FS JSON)
 export { useSettingsStore } from "./settings-store";
+export { seedWebDemoAIEndpointIfUntouched } from "./settings-store";
 export type { SettingsState } from "./settings-store";
 
 export { useVectorModelStore } from "./vector-model-store";

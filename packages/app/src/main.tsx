@@ -20,6 +20,7 @@ import {
   setVectorDB,
 } from "@readany/core/rag";
 import { setPlatformService } from "@readany/core/services";
+import { seedWebDemoAIEndpointIfUntouched } from "@readany/core/stores";
 import { setTheme as setTauriTheme } from "@tauri-apps/api/app";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { shouldSuppressNativeContextMenu } from "./lib/environment";
@@ -77,6 +78,9 @@ if (IS_WEB) {
   webPlatform = new WebPlatformService();
   setPlatformService(webPlatform);
   void webPlatform.init().catch(console.error);
+  // Turnkey demo: point the AI config at Gemini (via /gemini-api proxy) when
+  // the user hasn't configured any endpoint yet.
+  void seedWebDemoAIEndpointIfUntouched().catch(console.error);
 } else {
   const tauriPlatform = new TauriPlatformService();
   tauriPlatform.initSync().catch(console.error);
