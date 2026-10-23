@@ -46,7 +46,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           # gemini-2.5-flash is deprecated for new users — prefer 3.8 explicitly.
-          MODEL=$(jq -r 'if any(.models[].name == "models/gemini-3.8-flash") then "gemini-3.8-flash" else ([.models[].name | select(test("gemini-.*-flash"))] | map(select(test("tts|image|embedding|learnlang";"i") | not)) | .[0] | sub("^models/";"")) end' /tmp/models.json)
+          MODEL=$(jq -r 'if any(.models[]; .name == "models/gemini-3.8-flash") then "gemini-3.8-flash" else ([.models[].name | select(test("gemini-.*-flash"))] | map(select(test("tts|image|embedding|learnlang";"i") | not)) | .[0] | sub("^models/";"")) end' /tmp/models.json)
           echo "Using model: $MODEL"
           echo "$MODEL" > /tmp/model-name.txt
           code=$(curl -sS -o /tmp/chat.json -w "%{http_code}" \
