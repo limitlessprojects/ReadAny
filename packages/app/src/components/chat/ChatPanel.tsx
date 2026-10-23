@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { type AttachedQuote, ChatInput } from "./ChatInput";
 import { MessageList } from "./MessageList";
 import { ModelSelector } from "./ModelSelector";
+import { publicAsset } from "@/lib/public-asset";
 
 interface ChatPanelProps {
   book?: Book | null;
@@ -442,7 +443,7 @@ export function ChatPanel({ book, onNavigateToCitation }: ChatPanelProps) {
         ) : (
           <div className="flex h-full flex-col items-start justify-end gap-3 overflow-y-auto p-4 pb-6">
             <div className="flex flex-col items-start gap-3 pl-1">
-              <img src="/think.svg" alt="" className="h-28 w-28 shrink-0 dark:invert" />
+              <img src={publicAsset("think.svg")} alt="" className="h-28 w-28 shrink-0 dark:invert" />
               <div className="space-y-1">
                 <h3 className="text-lg font-semibold text-foreground">{t("chat.aiAssistant")}</h3>
                 <p className="max-w-sm text-sm text-muted-foreground">

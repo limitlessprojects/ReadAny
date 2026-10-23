@@ -4,6 +4,20 @@ import i18n from "@readany/core/i18n";
 
 const READER_TOUR_SEEN_KEY = "readany-reader-tour-seen";
 
+let activeTour: ReturnType<typeof driver> | null = null;
+
+/** Escape hatch for view switches (e.g. opening the chat panel mid-tour):
+ *  tear the tour down. destroy() fires onDestroyed, which marks the tour
+ *  seen — once the user heads elsewhere we don't nag them again. */
+export function stopReaderTour(): void {
+  try {
+    activeTour?.destroy();
+  } catch {
+    /* already destroyed */
+  }
+  activeTour = null;
+}
+
 export function hasSeenReaderTour(): boolean {
   return localStorage.getItem(READER_TOUR_SEEN_KEY) === "true";
 }
@@ -17,6 +31,7 @@ export function resetReaderTour(): void {
 }
 
 export function startReaderTour() {
+  activeTour?.destroy();
   const d = driver({
     showProgress: true,
     animate: true,
@@ -28,6 +43,7 @@ export function startReaderTour() {
     doneBtnText: i18n.t("tour.done", "Got it"),
     progressText: i18n.t("tour.progress", "{{current}} / {{total}}"),
     onDestroyed: () => {
+      if (activeTour === d) activeTour = null;
       markReaderTourSeen();
     },
     steps: [
@@ -70,5 +86,6 @@ export function startReaderTour() {
     ],
   });
 
+  activeTour = d;
   d.drive();
 }

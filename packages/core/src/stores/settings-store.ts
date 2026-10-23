@@ -540,7 +540,9 @@ export async function seedWebDemoAIEndpointIfUntouched(): Promise<void> {
     apiKey: "proxy", // placeholder — /gemini-api proxy injects the real key
     baseUrl: "https://generativelanguage.googleapis.com",
     useExactRequestUrl: false,
-    models: ["gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3-pro"],
+    // Model list verified against the live API on 2026-10-23 (older
+    // gemini-3.8-flash-lite / gemini-3-pro IDs return 404).
+    models: ["gemini-3.8-flash", "gemini-3.5-flash"],
     modelsFetched: true,
   });
   store.setActiveEndpoint("default");

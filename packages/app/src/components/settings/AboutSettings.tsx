@@ -42,6 +42,7 @@ import React, { useEffect, useRef, useState } from "react";
 // Timer cleanup for the copy feedback flag (unmount-safe).
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { publicAsset } from "@/lib/public-asset";
 
 type TechStackItem = {
   name: string;
@@ -173,7 +174,7 @@ export function AboutSettings() {
       {/* Logo & App Name */}
       <div className="mb-6 flex flex-col items-center">
         <img
-          src="/logo.svg"
+          src={publicAsset("logo.svg")}
           alt="ReadAny Logo"
           className="mb-4 h-24 w-24 rounded-[22%] drop-shadow-lg"
         />

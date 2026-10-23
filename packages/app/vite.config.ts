@@ -33,18 +33,86 @@ const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY || "";
 const GEMINI_TARGET = process.env.GEMINI_API_TARGET || "http://127.0.0.1:8787";
 // @ts-expect-error process is a nodejs global
 const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
+// @ts-expect-error process is a nodejs global
+const ANTHROPIC_TARGET = process.env.ANTHROPIC_API_TARGET || "https://api.anthropic.com";
+// @ts-expect-error process is a nodejs global
+const OPENAI_TARGET = process.env.OPENAI_API_TARGET || "https://api.openai.com";
 
-/** Inject the server-side key when the client didn't send one. The OpenAI-
- *  compat surface authenticates with Bearer; the native v1beta surface
- *  (generateContent — used by Gemini TTS) with x-goog-api-key. Set both. */
+/** The web demo auto-seeds endpoint apiKey with the literal "proxy" — a
+ *  client-side placeholder meaning "the server holds the real key". Any such
+ *  placeholder credential must be swapped for the server-side key, never
+ *  forwarded upstream. Real (BYOK) keys pass through untouched. */
+function isProxyPlaceholder(value: string | undefined | null): boolean {
+  if (!value) return false;
+  return value.replace(/^Bearer /i, "").trim().toLowerCase() === "proxy";
+}
+
+/** Rewrite `?key=proxy` in the proxied URL (the settings "test connection"
+ *  flow builds native Gemini URLs with the key in the query string). */
+function replaceProxyKeyQuery(urlPath: string, serverKey: string): string {
+  if (!urlPath.includes("key=")) return urlPath;
+  const url = new URL(urlPath, "http://proxy.local");
+  if (isProxyPlaceholder(url.searchParams.get("key"))) {
+    if (serverKey) url.searchParams.set("key", serverKey);
+    else url.searchParams.delete("key");
+  }
+  return url.pathname + url.search;
+}
+
+/** Inject the server-side key when the client didn't send one — or sent the
+ *  "proxy" placeholder (see isProxyPlaceholder). Bearer for OpenAI-compatible
+ *  targets (Cerebras). Gemini is handled by injectGeminiAuthOnProxyReq below
+ *  because its two credential families must never mix. */
 function injectBearerOnProxyReq(key: string) {
   return (proxyReq: import("node:http").ClientRequest) => {
-    if (key) {
-      const auth = proxyReq.getHeader("authorization");
-      const hasKey = typeof auth === "string" && auth.length > "Bearer ".length;
-      if (!hasKey) {
-        proxyReq.setHeader("Authorization", `Bearer ${key}`);
+    if (!key) return;
+    const auth = proxyReq.getHeader("authorization");
+    const hasRealKey = typeof auth === "string" && auth.length > "Bearer ".length && !isProxyPlaceholder(auth);
+    if (!hasRealKey) {
+      proxyReq.setHeader("Authorization", `Bearer ${key}`);
+    }
+  };
+}
+
+/** Gemini credential routing — mixing families makes Google reject the call
+ *  with "API keys are not supported by this API. Expected OAuth2…":
+ *   - native v1beta surface (TTS, models list, generateContent)
+ *       → x-goog-api-key header or ?key= query, NEVER Authorization
+ *   - OpenAI-compat surface (/v1beta/openai/*)
+ *       → Authorization: Bearer, never a stray x-goog header
+ *  BYOK keys pass through; the "proxy" placeholder is swapped for the server
+ *  key (identical semantics to the Netlify edge function). */
+function injectGeminiAuthOnProxyReq(key: string) {
+  return (proxyReq: import("node:http").ClientRequest) => {
+    if (!key) return;
+    const fullPath = proxyReq.path || "";
+    const qIdx = fullPath.indexOf("?");
+    const pathname = qIdx >= 0 ? fullPath.slice(0, qIdx) : fullPath;
+    const query = new URLSearchParams(qIdx >= 0 ? fullPath.slice(qIdx + 1) : "");
+    const nativeSurface = !pathname.includes("/openai/");
+    const auth = proxyReq.getHeader("authorization");
+    const goog = proxyReq.getHeader("x-goog-api-key");
+    const realAuth = typeof auth === "string" && auth.length > "Bearer ".length && !isProxyPlaceholder(auth);
+    const realGoog = typeof goog === "string" && goog.length > 0 && !isProxyPlaceholder(goog);
+    if (nativeSurface) {
+      if (query.has("key")) {
+        // Auth via the (possibly swapped) query key: headers must not conflict.
+        proxyReq.removeHeader("authorization");
+        proxyReq.removeHeader("x-goog-api-key");
+      } else if (realGoog) {
+        proxyReq.removeHeader("authorization");
+      } else if (realAuth) {
+        // BYOK Bearer on the native surface — forward as-is.
+      } else {
+        proxyReq.removeHeader("authorization");
         proxyReq.setHeader("x-goog-api-key", key);
+      }
+    } else {
+      if (realAuth) {
+        if (!realGoog) proxyReq.removeHeader("x-goog-api-key");
+      } else {
+        proxyReq.setHeader("Authorization", `Bearer ${key}`);
+        proxyReq.removeHeader("x-goog-api-key");
       }
     }
   };
@@ -186,6 +254,9 @@ export default defineConfig(async () => ({
     ],
   },
   clearScreen: false,
+  // Web deploys serve the SPA under /app/ so the repo root of the published
+  // site can host the landing page. Desktop/Tauri builds keep "/".
+  base: WEB_SHIM ? "/app/" : "/",
   server: {
     port: 1420,
     strictPort: true,
@@ -214,12 +285,35 @@ export default defineConfig(async () => ({
       "/gemini-api": {
         target: GEMINI_TARGET,
         changeOrigin: true,
-        rewrite: (p: string) => p.replace(/^\/gemini-api/, ""),
+        rewrite: (p: string) => replaceProxyKeyQuery(p.replace(/^\/gemini-api/, ""), GEMINI_KEY),
         // Keep SSE streams unbuffered.
         headers: { "X-Accel-Buffering": "no" },
         configure: (proxy) => {
-          proxy.on("proxyReq", injectBearerOnProxyReq(GEMINI_KEY));
+          proxy.on("proxyReq", injectGeminiAuthOnProxyReq(GEMINI_KEY));
         },
+      },
+      "/anthropic-api": {
+        target: ANTHROPIC_TARGET,
+        changeOrigin: true,
+        rewrite: (p: string) => p.replace(/^\/anthropic-api/, ""),
+        headers: { "X-Accel-Buffering": "no" },
+        // BYOK-only: no server-held Anthropic key; x-api-key passes through.
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            // Anthropic rejects browser CORS preflights without this header;
+            // through the proxy it must come from the server side.
+            if (!proxyReq.getHeader("anthropic-dangerous-direct-browser-access")) {
+              proxyReq.setHeader("anthropic-dangerous-direct-browser-access", "true");
+            }
+          });
+        },
+      },
+      "/openai-api": {
+        target: OPENAI_TARGET,
+        changeOrigin: true,
+        rewrite: (p: string) => p.replace(/^\/openai-api/, ""),
+        headers: { "X-Accel-Buffering": "no" },
+        // BYOK-only: no server-held OpenAI key; Authorization passes through.
       },
       "/gtranslate-tts": {
         target: "https://translate.google.com",

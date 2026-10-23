@@ -44,6 +44,7 @@ import { ChatInput } from "./ChatInput";
 import { ContextPopover } from "./ContextPopover";
 import { MessageList } from "./MessageList";
 import { ModelSelector } from "./ModelSelector";
+import { publicAsset } from "@/lib/public-asset";
 
 function ThreadsSidebar({
   open,
@@ -192,18 +193,22 @@ function EmptyState({ onSuggestionClick }: { onSuggestionClick: (text: string) =
 
   return (
     <div className="flex h-full w-full select-none items-center justify-center overflow-y-auto p-6">
-      <div className="flex items-center gap-12">
-        <img src="/think.svg" alt="" className="h-52 w-52 shrink-0 dark:invert" />
-        <div className="flex flex-col gap-6">
-          <div>
+      <div className="flex min-w-0 flex-col items-center gap-8 sm:flex-row sm:gap-12">
+        <img
+          src={publicAsset("think.svg")}
+          alt=""
+          className="h-28 w-28 shrink-0 dark:invert sm:h-52 sm:w-52"
+        />
+        <div className="flex min-w-0 flex-col gap-6">
+          <div className="text-center sm:text-left">
             <h1 className="text-2xl font-semibold text-foreground">{t("chat.howCanIHelp")}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t("chat.askAboutBooks")}</p>
           </div>
           <div>
-            <h2 className="mb-2 text-sm font-medium text-muted-foreground">
+            <h2 className="mb-2 text-center text-sm font-medium text-muted-foreground sm:text-left">
               {t("chat.getStarted")}
             </h2>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="mx-auto grid w-full max-w-sm grid-cols-2 gap-3 sm:mx-0">
               {SUGGESTIONS.map(({ key, icon: Icon }) => (
                 <button
                   type="button"

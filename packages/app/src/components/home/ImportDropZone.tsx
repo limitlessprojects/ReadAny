@@ -7,6 +7,11 @@ import { Loader2, Plus } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { publicAsset } from "@/lib/public-asset";
+
+const SUPPORTED_DROP_EXTS = new Set([
+  "epub", "pdf", "mobi", "azw", "azw3", "fb2", "fbz", "txt", "umd", "cbz",
+]);
 
 export function ImportDropZone() {
   const { t } = useTranslation();
@@ -18,27 +23,31 @@ export function ImportDropZone() {
     async (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
-      // In Tauri, drag-and-drop provides file paths via the dataTransfer
-      const files = e.dataTransfer.files;
+      // In Tauri, drag-and-drop provides file paths via the dataTransfer.
+      // On the web the drop event only carries File objects — persist them
+      // into the WebVFS first (same contract as the file-dialog shim), then
+      // import from the returned paths. Previously web drops were silently
+      // ignored (path-less files never matched), which made the "drop to
+      // upload" affordance a no-op in the browser build.
+      const files = Array.from(e.dataTransfer.files ?? []) as (File & { path?: string })[];
       const paths: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i] as File & { path?: string };
+      const webFiles: File[] = [];
+      for (const f of files) {
+        const ext = f.name.split(".").pop()?.toLowerCase();
         if (f.path) {
-          const ext = f.name.split(".").pop()?.toLowerCase();
-          if (
-            ext === "epub" ||
-            ext === "pdf" ||
-            ext === "mobi" ||
-            ext === "azw" ||
-            ext === "azw3" ||
-            ext === "fb2" ||
-            ext === "fbz" ||
-            ext === "txt" ||
-            ext === "umd" ||
-            ext === "cbz"
-          ) {
+          if (ext && SUPPORTED_DROP_EXTS.has(ext)) {
             paths.push(f.path);
           }
+        } else if (ext && SUPPORTED_DROP_EXTS.has(ext)) {
+          webFiles.push(f);
+        }
+      }
+      if (webFiles.length > 0) {
+        try {
+          const { stashWebFiles } = await import("@/lib/platform/tauri-shim-dialog");
+          paths.push(...(await stashWebFiles(webFiles)));
+        } catch (err) {
+          console.error("[ImportDropZone] web stash failed", err);
         }
       }
       if (paths.length > 0) {
@@ -70,7 +79,7 @@ export function ImportDropZone() {
           onDrop={handleDrop}
         >
           <div className="mx-auto mb-6">
-            <img src="/book.svg" alt="" className="h-40 w-40 mx-auto dark:invert" />
+            <img src={publicAsset("book.svg")} alt="" className="h-40 w-40 mx-auto dark:invert" />
           </div>
           <p className="mb-1 text-base font-medium text-foreground">{t("home.emptyLibrary")}</p>
           <p className="mb-4 text-sm text-muted-foreground">{t("home.dropToUpload")}</p>

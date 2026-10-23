@@ -18,7 +18,7 @@ import { useReadingSession } from "@/hooks/use-reading-session";
 import { useResizablePanel } from "@/hooks/use-resizable-panel";
 import { useIsNarrowViewport } from "@/hooks/use-is-narrow-viewport";
 import { useResolvedSrc } from "@/hooks/use-resolved-src";
-import { hasSeenReaderTour, startReaderTour } from "@/lib/reader-tour";
+import { hasSeenReaderTour, startReaderTour, stopReaderTour } from "@/lib/reader-tour";
 import { DocumentLoader } from "@/lib/reader/document-loader";
 import type { BookDoc, BookFormat } from "@/lib/reader/document-loader";
 import { isFixedLayoutBook } from "@/lib/reader/document-loader";
@@ -1386,6 +1386,12 @@ export function ReaderView({ bookId, tabId }: ReaderViewProps) {
       setTimeout(() => startReaderTour(), 600);
     }
   }, [isLoading]);
+
+  // Opening the chat panel while the onboarding tour is active leaves the
+  // tour overlay bleeding over the chat UI — tear the tour down first.
+  useEffect(() => {
+    if (showChat) stopReaderTour();
+  }, [showChat]);
 
   // Handle section load (chapter change) - re-render all highlights
   // This is critical: when foliate-js loads a new section (chapter),

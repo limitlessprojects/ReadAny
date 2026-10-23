@@ -49,6 +49,14 @@ async function stash(files: File[]): Promise<string[]> {
   return paths;
 }
 
+/** Shared seam for drag-and-drop importers: the HTML5 drop event only hands
+ *  out File objects (no Tauri `path`), so web callers persist them into the
+ *  WebVFS import dir themselves and treat the returned paths like dialog
+ *  results. Desktop callers never need this (their files carry paths). */
+export function stashWebFiles(files: File[]): Promise<string[]> {
+  return stash(files);
+}
+
 let lastPickerInput: HTMLInputElement | null = null;
 
 export function getLastPickerInput(): HTMLInputElement | null {

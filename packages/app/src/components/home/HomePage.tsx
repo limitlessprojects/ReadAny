@@ -147,15 +147,24 @@ export function HomePage() {
     async (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragOver(false);
-      const files = e.dataTransfer.files;
+      // Desktop webview drops carry Tauri `path` on each File; browser drops
+      // only carry File objects, which we persist into the WebVFS first —
+      // otherwise the drop affordance silently does nothing on the web.
+      const files = Array.from(e.dataTransfer.files ?? []) as (File & { path?: string })[];
       const paths: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i] as File & { path?: string };
-        if (f.path) {
-          const ext = f.name.split(".").pop()?.toLowerCase() || "";
-          if (SUPPORTED_EXTS.has(ext)) {
-            paths.push(f.path);
-          }
+      const webFiles: File[] = [];
+      for (const f of files) {
+        const ext = f.name.split(".").pop()?.toLowerCase() || "";
+        if (!SUPPORTED_EXTS.has(ext)) continue;
+        if (f.path) paths.push(f.path);
+        else webFiles.push(f);
+      }
+      if (webFiles.length > 0) {
+        try {
+          const { stashWebFiles } = await import("@/lib/platform/tauri-shim-dialog");
+          paths.push(...(await stashWebFiles(webFiles)));
+        } catch (err) {
+          console.error("[HomePage] web drop stash failed", err);
         }
       }
       if (paths.length > 0) {

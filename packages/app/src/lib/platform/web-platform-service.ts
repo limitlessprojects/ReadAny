@@ -50,6 +50,10 @@ const PROVIDER_PROXY_HOSTS: Record<string, string> = {
   "api.cerebras.ai": "/cerebras-api",
   "generativelanguage.googleapis.com": "/gemini-api",
   "translate.google.com": "/gtranslate-tts",
+  // BYOK providers — same-origin proxy avoids CORS preflight failures and
+  // keeps the app's fetch surface uniform across all providers.
+  "api.anthropic.com": "/anthropic-api",
+  "api.openai.com": "/openai-api",
 };
 
 export function rewriteProviderUrl(url: string): string {

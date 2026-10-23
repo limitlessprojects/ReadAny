@@ -26,6 +26,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { publicAsset } from "@/lib/public-asset";
 
 interface NotebookPanelProps {
   bookId: string;
@@ -341,7 +342,7 @@ export function NotebookPanel({
         {/* Empty state */}
         {bookHighlights.length === 0 && !isEditing && (
           <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-            <img src="/note.svg" alt="" className="mb-4 h-32 w-32" />
+            <img src={publicAsset("note.svg")} alt="" className="mb-4 h-32 w-32" />
             <p className="text-sm text-muted-foreground">{t("notebook.empty")}</p>
             <p className="mt-1 text-xs text-muted-foreground/70">{t("notebook.emptyHint")}</p>
           </div>

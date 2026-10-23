@@ -37,6 +37,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 import { ExportDropdown } from "./ExportDropdown";
+import { publicAsset } from "@/lib/public-asset";
 
 type DetailTab = "notes" | "highlights";
 
@@ -304,7 +305,7 @@ export function NotesPage() {
   if (bookNotebooks.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-        <img src="/note.svg" alt="" className="mb-6 h-48 w-48 dark:invert" />
+        <img src={publicAsset("note.svg")} alt="" className="mb-6 h-48 w-48 dark:invert" />
         <p className="text-base font-medium text-foreground">{t("notes.empty")}</p>
         <p className="mt-2 text-sm text-muted-foreground">{t("notes.emptyHint")}</p>
       </div>
