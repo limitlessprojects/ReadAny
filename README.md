@@ -36,6 +36,8 @@
 
 > 🚀 **v2.0 Update**: Mobile apps (iOS/Android) now available! See [Mobile](#mobile-apps) section below.
 
+> 🏁 **`cerebras-demo` branch**: the full reader running in a plain browser (no Tauri) with one-click **Gemini (free tier)** / **Cerebras** providers, a live **TTFT/tok·s streaming badge**, a resilient **Edge ↔ Google ↔ System TTS chain** with Swahili auto-voices, chat **voice dictation**, and a full-screen chat sheet on phone-width viewports. See [DEMO.md](./DEMO.md) for the 2-minute runbook.
+
 ## AI-Native Reading Workflow
 
 - **Chat with your library** - Ask questions about the current book or selected passages, with answers grounded in your reading context
