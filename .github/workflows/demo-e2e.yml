@@ -56,7 +56,7 @@ jobs:
             curl -sS -o /tmp/chat.json -w "%{http_code}" \
               "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" \
               -H "Authorization: Bearer $GEMINI_API_KEY" -H "content-type: application/json" \
-              -d "{\"model\":\"$1\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: OK\"}],\"max_tokens\":10}"
+              -d "{\"model\":\"$1\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: OK\"}],\"max_completion_tokens\":2048}"
           }
           code=0
           for attempt in 1 2 3 4; do
