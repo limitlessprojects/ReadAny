@@ -19,7 +19,7 @@ import { createReadStream, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
-import { handleProviderProxy } from "../netlify/edge-functions/proxy-core.ts";
+import { handleProviderProxy } from "../netlify/edge-functions/lib/proxy-core.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");

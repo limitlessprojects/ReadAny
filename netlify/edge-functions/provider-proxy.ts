@@ -13,7 +13,7 @@
 // @ts-expect-error — Netlify global is injected by the edge runtime.
 declare const Netlify: { env: { get(key: string): string | undefined } };
 
-import { type ProxyEnv, handleProviderProxy } from "./proxy-core.ts";
+import { type ProxyEnv, handleProviderProxy } from "./lib/proxy-core.ts";
 
 const netlifyEnv: ProxyEnv = {
   get: (key: string) => {
