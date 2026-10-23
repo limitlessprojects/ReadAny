@@ -33,9 +33,10 @@ import { useLibraryStore } from "@/stores/library-store";
 import { useReaderStore } from "@/stores/reader-store";
 import { useFontStore } from "@readany/core/stores";
 import { useSettingsStore } from "@readany/core/stores/settings-store";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Menu } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useIsNarrowViewport } from "@/hooks/use-is-narrow-viewport";
 import { HomeSidebar } from "./Sidebar";
 import { TabBar } from "./TabBar";
 
@@ -127,10 +128,28 @@ export function AppLayout() {
   }, [customFonts]);
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  // Phone-width viewports: the 192px desktop sidebar becomes a slide-in
+  // drawer so the content card keeps (nearly) the whole screen.
+  const isNarrowViewport = useIsNarrowViewport();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const prevActiveTabRef = useRef(activeTabId);
+  useEffect(() => {
+    // Navigating from the drawer (Chat → Notes → …) closes it; in-place
+    // interactions (group expanders, tag inputs) don't change the active tab
+    // and keep it open.
+    if (prevActiveTabRef.current !== activeTabId) {
+      prevActiveTabRef.current = activeTabId;
+      setMobileSidebarOpen(false);
+    }
+  }, [activeTabId]);
+  const closeMobileSidebar = useCallback(() => setMobileSidebarOpen(false), []);
   const readerTabs = tabs.filter((t) => t.type === "reader" && t.bookId);
   const draftTabs = tabs.filter((t) => t.type === "epubDraft" && t.draftId);
   const isReaderActive = readerTabs.some((t) => t.id === activeTabId);
   const isWorkspaceActive = draftTabs.some((t) => t.id === activeTabId);
+  useEffect(() => {
+    if (isReaderActive || isWorkspaceActive) setMobileSidebarOpen(false);
+  }, [isReaderActive, isWorkspaceActive]);
   const [showTabBar, setShowTabBar] = useState(!isReaderActive);
   const hideTabBarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevIsReaderActiveRef = useRef(isReaderActive);
@@ -345,7 +364,21 @@ export function AppLayout() {
           isReaderActive && !showTabBar ? "-translate-y-full" : "translate-y-0"
         }`}
       >
-        <TabBar />
+        <TabBar
+          leadingNav={
+            isNarrowViewport && !isReaderActive && !isWorkspaceActive ? (
+              <button
+                type="button"
+                aria-label={t("common.menu", "Menu")}
+                className="mr-0.5 flex items-center justify-center rounded-md p-1 text-neutral-500 transition-colors hover:bg-neutral-200/60 hover:text-neutral-800"
+                data-no-window-drag
+                onClick={() => setMobileSidebarOpen(true)}
+              >
+                <Menu className="h-[18px] w-[18px]" />
+              </button>
+            ) : undefined
+          }
+        />
       </div>
       <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {!isReaderActive && !isWorkspaceActive && <div className="h-8 shrink-0" />}
@@ -354,7 +387,11 @@ export function AppLayout() {
           className="flex min-h-0 flex-1 w-full overflow-hidden"
           style={{ display: !isReaderActive && !isWorkspaceActive ? "flex" : "none" }}
         >
-          <HomeSidebar />
+          {isNarrowViewport ? (
+            <MobileHomeSidebar open={mobileSidebarOpen} onClose={closeMobileSidebar} />
+          ) : (
+            <HomeSidebar />
+          )}
           <div className="min-h-0 flex-1 overflow-hidden pr-1 pb-1">
             <div className="relative flex h-full flex-col overflow-hidden rounded-xl border bg-background shadow-around">
               {/* All home sub-views stay mounted; toggle via display:none */}
@@ -413,6 +450,27 @@ export function AppLayout() {
       <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
       <FloatingTTSBubble />
     </div>
+  );
+}
+
+/** Phone-width sidebar: slide-in drawer over the content, backdrop to close. */
+function MobileHomeSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <>
+      <div
+        className={`absolute inset-0 z-30 bg-black/35 transition-opacity duration-200 ${
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={onClose}
+      />
+      <div
+        className={`absolute bottom-0 left-0 top-8 z-40 bg-muted transform transition-transform duration-200 ease-out ${
+          open ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+        }`}
+      >
+        <HomeSidebar />
+      </div>
+    </>
   );
 }
 

@@ -60,7 +60,12 @@
     "selectAndCopy": "Long-press text to select and copy",
     "selectBooks": "Select book context",
     "threads": "Conversations",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "dictationErrorPermission": "Microphone blocked — allow mic access in your browser settings.",
+    "dictationErrorNetwork": "Dictation needs a network connection.",
+    "dictationErrorNoSpeech": "Didn't catch that — try speaking a little louder.",
+    "dictationErrorMic": "No microphone found.",
+    "dictationErrorGeneric": "Dictation problem — try again."
   },
   "streaming": {
     "thinking": "Thinking...",

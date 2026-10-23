@@ -1,7 +1,7 @@
 # ReadAny Demo — Gemini (free tier) + Cerebras, phone-screen browser demo
 
 **Branch:** `cerebras-demo` (fork of [codedogQBY/ReadAny](https://github.com/codedogQBY/ReadAny), GPL-3.0 preserved)
-**What it is:** the full ReadAny reader running in a **plain browser** (no Tauri shell) with first-class **Gemini** and **Cerebras** providers, live **streaming speed instrumentation** (TTFT / tok·s badge), a **resilient TTS chain** (Edge ↔ Google ↔ System) with native Swahili voices, **voice dictation** in chat, and a **full-screen chat sheet** on phone-width viewports.
+**What it is:** the full ReadAny reader running in a **plain browser** (no Tauri shell) with first-class **Gemini** and **Cerebras** providers, live **streaming speed instrumentation** (TTFT / tok·s badge), a **resilient TTS chain** (Gemini → Edge ↔ Google ↔ System) headlined by a native **Gemini TTS engine** (studio-grade neural voices on the free-tier key), **voice dictation** in chat, and **phone-first layouts** (full-screen chat sheet, slide-in sidebar drawer, responsive settings sheet).
 
 Primary model path is **Google Gemini via its OpenAI-compatible endpoint** (`https://generativelanguage.googleapis.com/v1beta/openai`) — the free-tier key works from supported regions (Kenya is one; see [available regions](https://ai.google.dev/gemini-api/docs/available-regions)). Cerebras remains one env-var away for the competition variant.
 
@@ -64,12 +64,16 @@ In the app: **Settings → AI** → pick the provider endpoint + model (`gemini-
 | Demo auto-seed | `settings-store.ts` `seedWebDemoAIEndpointIfUntouched` | fresh profiles get a working Gemini endpoint automatically |
 | Stream metrics | `packages/core/src/ai/stream-metrics.ts` | tees the SSE stream → **time-to-first-token** + tok/s, broadcast to the UI |
 | Sleek speed badge | `components/chat/MessageList.tsx` | mono pill `⚡ 4ms · 95 tok/s` on the latest answer — metrics live in the tooltip, not the chat text |
-| Resilient TTS chain | `stores/tts-store.ts` | engine fallback **Edge ↔ Google ↔ System**, fires exactly once per failure |
+| Resilient TTS chain | `stores/tts-store.ts` | engine fallback **Gemini → Edge ↔ Google ↔ System**, fires exactly once per failure |
+| Gemini TTS engine | `packages/core/src/tts/gemini-tts.ts` | native `:generateContent` surface (`gemini-3.8-flash-lite-tts` default), 30 prebuilt voices, PCM/WAV decode, key injected server-side by the `/gemini-api` proxy — this is the "doesn't sound AI" engine |
 | Google TTS engine | `packages/core/src/tts/google-translate-tts.ts` | keyless, works on any network, per-text language auto-detect (sw/zh/ja/ar/en) |
 | Swahili auto-voice | core TTS + store | Swahili text → `sw-KE-RafikiNeural` (Edge) or `tl=sw` (Google) without manual picking |
 | Edge TTS relay | `vite.config.ts` `edgeTtsRelayPlugin` | tunnels the Microsoft speech WebSocket with the required headers |
-| Voice dictation | `components/chat/ChatInput.tsx` | guarded Web Speech API mic button (hidden when unsupported, `sw-KE` when UI language is Swahili) |
+| Voice dictation | `components/chat/ChatInput.tsx` | guarded Web Speech API mic button (hidden when unsupported, `sw-KE` when UI language is Swahili) with surfaced error states (mic blocked / offline / no speech) |
 | Full-screen chat sheet | `components/reader/ReaderView.tsx` | phone-width viewports get a full-screen chat overlay — the document keeps its width, no squeezed side-by-side |
+| Mobile sidebar drawer | `layout/AppLayout.tsx` + `TabBar.tsx` | on phones the 192px desktop sidebar becomes a hamburger + slide-in drawer that auto-closes on navigation |
+| Reader toolbar on phones | `components/reader/ReaderToolbar.tsx` | desktop-only controls (sync / PDF-zoom widget / pin / fullscreen) drop off at phone width so **Ask AI** is always on screen |
+| Responsive settings sheet | `components/settings/SettingsDialog.tsx` | 800px desktop dialog becomes a full-screen sheet with a horizontal chip nav on phones |
 
 **Desktop/Tauri build is untouched** — every web-only behavior is gated behind `READANY_WEB=1` (vite aliases) or `IS_WEB` runtime detection.
 

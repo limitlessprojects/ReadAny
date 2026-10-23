@@ -59,7 +59,12 @@
     "selectAndCopy": "長按選取文字複製",
     "selectBooks": "選擇書籍上下文",
     "threads": "對話列表",
-    "untitled": "新對話"
+    "untitled": "新對話",
+    "dictationErrorPermission": "麥克風被阻擋——請在瀏覽器設定中允許麥克風權限。",
+    "dictationErrorNetwork": "語音輸入需要網路連線。",
+    "dictationErrorNoSpeech": "沒有聽到聲音——請稍微大聲一點。",
+    "dictationErrorMic": "找不到麥克風。",
+    "dictationErrorGeneric": "語音輸入發生問題——請重試。"
   },
   "streaming": {
     "thinking": "正在思考...",

@@ -36,6 +36,10 @@
       "openai-compatible": {
         "label": "Compatible con OpenAI",
         "description": "Endpoint compatible con OpenAI audio/speech o audio de chat."
+      },
+      "gemini": {
+        "label": "Gemini TTS",
+        "description": "Voces neuronales de Google Gemini: naturalidad de estudio; el proxy de la demo puede servir la clave."
       }
     },
     "providerCategory": {
@@ -142,7 +146,11 @@
     "engineDescDashscope": "Alibaba Tongyi · Chino optimizado",
     "engineDescSystem": "Sistema integrado · Gratis",
     "player": "Reproductor TTS",
-    "listeningToBook": "Reproduciendo audiolibro"
+    "listeningToBook": "Reproduciendo audiolibro",
+    "geminiStyleHint": "p. ej. cálido y pausado, como un cuento",
+    "geminiStyleDesc": "Sugerencia de estilo: los modelos 2.5 la dicen en línea; las voces 3.8 ya traen su propia entonación.",
+    "geminiKeyPlaceholder": "Opcional en web",
+    "geminiKeyHint": "Déjalo vacío en la demo web: el servidor inyecta la clave."
   },
   "fonts": {
     "title": "Fuentes",

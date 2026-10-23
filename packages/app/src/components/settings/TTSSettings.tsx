@@ -11,6 +11,8 @@ import { Slider } from "@/components/ui/slider";
 import {
   DASHSCOPE_VOICES,
   EDGE_TTS_VOICES,
+  GEMINI_TTS_MODELS,
+  GEMINI_TTS_VOICES,
   GOOGLE_TTS_LANGS,
   XIAOMI_TTS_VOICES,
   getSystemVoices,
@@ -33,7 +35,7 @@ import {
   type TTSProviderType,
   type TTSProfile,
 } from "@readany/core/tts";
-import { Cloud, Headphones, Mic, Play, Settings2, Square, Zap } from "lucide-react";
+import { Cloud, Headphones, Mic, Play, Settings2, Sparkles, Square, Zap } from "lucide-react";
 import type { TFunction } from "i18next";
 /**
  * TTSSettings — TTS configuration panel in the settings dialog.
@@ -161,11 +163,13 @@ export function TTSSettings() {
     ? Headphones
     : activeProfile.provider === "edge"
       ? Zap
-      : activeProfile.provider === "dashscope"
-        ? Mic
-        : activeProfile.provider === "xiaomi"
-          ? Cloud
-          : Settings2;
+      : activeProfile.provider === "gemini"
+        ? Sparkles
+        : activeProfile.provider === "dashscope"
+          ? Mic
+          : activeProfile.provider === "xiaomi"
+            ? Cloud
+            : Settings2;
   const ProviderIcon = providerIcon;
 
   const selectProfile = (profileId: string) => {
@@ -338,6 +342,85 @@ export function TTSSettings() {
                 </SelectContent>
               </Select>
             </div>
+          )}
+
+          {config.engine === "gemini" && (
+            <>
+              {/* Gemini voice */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground">{t("tts.voice")}</span>
+                <Select
+                  value={config.geminiVoice}
+                  onValueChange={(v) => {
+                    updateActiveProfile({ voice: v });
+                    updateConfig({ geminiVoice: v });
+                  }}
+                >
+                  <SelectTrigger className="w-[240px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {GEMINI_TTS_VOICES.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Gemini model */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground">{t("tts.model", "Model")}</span>
+                <Select
+                  value={config.geminiTtsModel}
+                  onValueChange={(v) => {
+                    updateActiveProfile({ model: v });
+                    updateConfig({ geminiTtsModel: v });
+                  }}
+                >
+                  <SelectTrigger className="w-[240px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GEMINI_TTS_MODELS.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Gemini style hint */}
+              <div className="space-y-2">
+                <span className="text-sm text-foreground">{t("tts.stylePrompt", "Reading style")}</span>
+                <textarea
+                  className="min-h-[64px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={config.geminiStylePrompt}
+                  onChange={(e) => {
+                    updateActiveProfile({ stylePrompt: e.target.value });
+                    updateConfig({ geminiStylePrompt: e.target.value });
+                  }}
+                  placeholder={t("tts.geminiStyleHint", "e.g. warm and unhurried, like a bedtime story")}
+                />
+                <p className="text-xs text-muted-foreground">{t("tts.geminiStyleDesc")}</p>
+              </div>
+
+              {/* Gemini API key (optional on web — server proxy provides it) */}
+              <div className="space-y-2">
+                <span className="text-sm text-foreground">{t("tts.apiKey", "API Key")}</span>
+                <PasswordInput
+                  placeholder={t("tts.geminiKeyPlaceholder", "Optional on web")}
+                  value={config.geminiTtsApiKey}
+                  onChange={(e) => {
+                    updateActiveProfile({ apiKey: e.target.value });
+                    updateConfig({ geminiTtsApiKey: e.target.value });
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">{t("tts.geminiKeyHint")}</p>
+              </div>
+            </>
           )}
 
           {config.engine === "system" && (

@@ -2,7 +2,14 @@
  * TTS types and constants — shared across all platforms.
  */
 
-export type TTSEngine = "system" | "edge" | "google" | "dashscope" | "xiaomi" | "openai-compatible";
+export type TTSEngine =
+  | "system"
+  | "edge"
+  | "google"
+  | "gemini"
+  | "dashscope"
+  | "xiaomi"
+  | "openai-compatible";
 export type LegacyTTSEngine = TTSEngine | "browser";
 export type TTSProviderType = TTSEngine;
 export type TTSAudioFormat = "pcm16" | "wav" | "mp3";
@@ -26,6 +33,14 @@ export interface TTSConfig {
   edgeVoice: string;
   /** Google Translate TTS language code ("auto" detects per text; e.g. "en", "sw") */
   googleTtsLang: string;
+  /** Gemini TTS model (e.g. "gemini-3.8-flash-lite-tts") */
+  geminiTtsModel: string;
+  /** Gemini TTS prebuilt voice (e.g. "Leda") */
+  geminiVoice: string;
+  /** Natural-language style hint for Gemini TTS (inline direction on 2.5-era models) */
+  geminiStylePrompt: string;
+  /** Gemini API key (optional on web — the dev proxy injects the server-side key) */
+  geminiTtsApiKey: string;
   /** DashScope API Key (optional, for high-quality TTS) */
   dashscopeApiKey: string;
   /** DashScope voice (e.g. "Cherry", "Ethan") */
@@ -116,6 +131,17 @@ export const TTS_PROVIDER_DEFINITIONS: TTSProviderDefinition[] = [
     supportsStreaming: false,
   },
   {
+    id: "gemini",
+    label: "Gemini TTS",
+    description: "Google Gemini neural voices — studio-grade naturalness; key can be served by the dev proxy.",
+    category: "cloud",
+    requiresApiKey: false,
+    supportsVoice: true,
+    supportsStylePrompt: true,
+    supportsBaseUrl: false,
+    supportsStreaming: false,
+  },
+  {
     id: "dashscope",
     label: "DashScope",
     description: "Alibaba Cloud qwen3-tts-flash.",
@@ -162,6 +188,54 @@ export const XIAOMI_TTS_VOICES = [
   { id: "Dean", label: "Dean" },
 ] as const;
 
+export const DEFAULT_GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
+export const DEFAULT_GEMINI_TTS_VOICE = "Leda";
+
+/**
+ * The 30 Gemini prebuilt studio voices with their official character traits
+ * (ai.google.dev/gemini-api/docs/speech-generation). Auto language detection
+ * is built into the models — no per-language voice picking needed.
+ */
+export const GEMINI_TTS_VOICES = [
+  { id: "Zephyr", label: "Zephyr · Bright" },
+  { id: "Puck", label: "Puck · Upbeat" },
+  { id: "Charon", label: "Charon · Informative" },
+  { id: "Kore", label: "Kore · Firm" },
+  { id: "Fenrir", label: "Fenrir · Excitable" },
+  { id: "Leda", label: "Leda · Youthful" },
+  { id: "Orus", label: "Orus · Firm" },
+  { id: "Aoede", label: "Aoede · Breezy" },
+  { id: "Callirrhoe", label: "Callirrhoe · Easy-going" },
+  { id: "Autonoe", label: "Autonoe · Bright" },
+  { id: "Enceladus", label: "Enceladus · Breathy" },
+  { id: "Iapetus", label: "Iapetus · Clear" },
+  { id: "Umbriel", label: "Umbriel · Easy-going" },
+  { id: "Algieba", label: "Algieba · Smooth" },
+  { id: "Despina", label: "Despina · Smooth" },
+  { id: "Erinome", label: "Erinome · Clear" },
+  { id: "Algenib", label: "Algenib · Gravelly" },
+  { id: "Rasalgethi", label: "Rasalgethi · Informative" },
+  { id: "Laomedeia", label: "Laomedeia · Upbeat" },
+  { id: "Achernar", label: "Achernar · Soft" },
+  { id: "Alnilam", label: "Alnilam · Firm" },
+  { id: "Schedar", label: "Schedar · Even" },
+  { id: "Gacrux", label: "Gacrux · Mature" },
+  { id: "Pulcherrima", label: "Pulcherrima · Forward" },
+  { id: "Achird", label: "Achird · Friendly" },
+  { id: "Zubenelgenubi", label: "Zubenelgenubi · Casual" },
+  { id: "Vindemiatrix", label: "Vindemiatrix · Gentle" },
+  { id: "Sadachbia", label: "Sadachbia · Lively" },
+  { id: "Sadaltager", label: "Sadaltager · Knowledgeable" },
+  { id: "Sulafat", label: "Sulafat · Warm" },
+] as const;
+
+/** Models offered in the Gemini voice picker (newest first). */
+export const GEMINI_TTS_MODELS = [
+  { id: "gemini-3.8-flash-lite-tts", label: "3.8 Flash-Lite · fast, natural read-aloud" },
+  { id: "gemini-3.8-flash-tts", label: "3.8 Flash · studio-grade, 130 languages" },
+  { id: "gemini-2.5-flash-preview-tts", label: "2.5 Flash Preview · legacy" },
+] as const;
+
 export const DEFAULT_XIAOMI_TTS_VOICE = "mimo_default";
 export const DEFAULT_XIAOMI_TTS_BASE_URL = "https://api.xiaomimimo.com/v1";
 export const DEFAULT_XIAOMI_STYLE_PROMPT = "自然、平稳、适合长时间听书。";
@@ -203,6 +277,10 @@ export const DEFAULT_TTS_CONFIG: TTSConfig = {
   pitch: 1.0,
   edgeVoice: "zh-CN-XiaoxiaoNeural",
   googleTtsLang: "auto",
+  geminiTtsModel: DEFAULT_GEMINI_TTS_MODEL,
+  geminiVoice: DEFAULT_GEMINI_TTS_VOICE,
+  geminiStylePrompt: "",
+  geminiTtsApiKey: "",
   dashscopeApiKey: "",
   dashscopeVoice: "Cherry",
   xiaomiApiKey: "",
@@ -228,6 +306,7 @@ export function normalizeTTSEngine(engine: LegacyTTSEngine | string | null | und
     engine === "system" ||
     engine === "edge" ||
     engine === "google" ||
+    engine === "gemini" ||
     engine === "dashscope" ||
     engine === "xiaomi" ||
     engine === "openai-compatible"
@@ -266,6 +345,15 @@ export function createDefaultTTSProfiles(config: Partial<TTSConfig> = {}): TTSPr
       name: "Google TTS",
       provider: "google",
       voice: config.googleTtsLang ?? DEFAULT_TTS_CONFIG.googleTtsLang,
+    },
+    {
+      id: "gemini-default",
+      name: "Gemini TTS",
+      provider: "gemini",
+      model: config.geminiTtsModel ?? DEFAULT_GEMINI_TTS_MODEL,
+      voice: config.geminiVoice ?? DEFAULT_GEMINI_TTS_VOICE,
+      stylePrompt: config.geminiStylePrompt ?? "",
+      apiKey: config.geminiTtsApiKey ?? "",
     },
     {
       id: "dashscope-default",
@@ -350,6 +438,11 @@ export function syncConfigFromActiveProfile(config: TTSConfig): TTSConfig {
     next.edgeVoice = activeProfile.voice;
   } else if (engine === "google") {
     next.googleTtsLang = normalizeGoogleTtsLang(activeProfile.voice ?? next.googleTtsLang);
+  } else if (engine === "gemini") {
+    next.geminiTtsModel = activeProfile.model ?? next.geminiTtsModel;
+    next.geminiVoice = activeProfile.voice ?? next.geminiVoice;
+    next.geminiStylePrompt = activeProfile.stylePrompt ?? next.geminiStylePrompt;
+    next.geminiTtsApiKey = activeProfile.apiKey ?? next.geminiTtsApiKey;
   } else if (engine === "system") {
     next.voiceName = activeProfile.voice ?? "";
   } else if (engine === "dashscope") {
@@ -392,6 +485,10 @@ export function normalizeTTSConfig(config: PersistedTTSConfig | null | undefined
     pitch: typeof config?.pitch === "number" ? config.pitch : DEFAULT_TTS_CONFIG.pitch,
     edgeVoice: config?.edgeVoice ?? DEFAULT_TTS_CONFIG.edgeVoice,
     googleTtsLang: normalizeGoogleTtsLang(config?.googleTtsLang ?? DEFAULT_TTS_CONFIG.googleTtsLang),
+    geminiTtsModel: config?.geminiTtsModel ?? DEFAULT_TTS_CONFIG.geminiTtsModel,
+    geminiVoice: config?.geminiVoice ?? DEFAULT_TTS_CONFIG.geminiVoice,
+    geminiStylePrompt: config?.geminiStylePrompt ?? DEFAULT_TTS_CONFIG.geminiStylePrompt,
+    geminiTtsApiKey: config?.geminiTtsApiKey ?? DEFAULT_TTS_CONFIG.geminiTtsApiKey,
     dashscopeApiKey: config?.dashscopeApiKey ?? DEFAULT_TTS_CONFIG.dashscopeApiKey,
     dashscopeVoice: config?.dashscopeVoice ?? DEFAULT_TTS_CONFIG.dashscopeVoice,
     xiaomiApiKey: config?.xiaomiApiKey ?? DEFAULT_TTS_CONFIG.xiaomiApiKey,

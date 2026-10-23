@@ -59,7 +59,12 @@
     "selectAndCopy": "Appui long sur le texte pour sélectionner et copier",
     "selectBooks": "Sélectionner le contexte de livres",
     "threads": "Conversations",
-    "untitled": "Sans titre"
+    "untitled": "Sans titre",
+    "dictationErrorPermission": "Micro bloqué — autorisez l'accès au micro dans les réglages du navigateur.",
+    "dictationErrorNetwork": "La dictée nécessite une connexion internet.",
+    "dictationErrorNoSpeech": "Rien n'a été entendu — parlez un peu plus fort.",
+    "dictationErrorMic": "Aucun micro détecté.",
+    "dictationErrorGeneric": "Problème de dictée — réessayez."
   },
   "streaming": {
     "thinking": "Réflexion...",

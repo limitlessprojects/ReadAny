@@ -66,7 +66,7 @@ function useIsFullscreen() {
   return fs;
 }
 
-export function TabBar() {
+export function TabBar({ leadingNav }: { leadingNav?: React.ReactNode }) {
   const { tabs, activeTabId, setActiveTab, removeTab } = useAppStore();
   const removeReaderTab = useReaderStore((s) => s.removeTab);
   const books = useLibraryStore((s) => s.books);
@@ -102,6 +102,7 @@ export function TabBar() {
         className="flex h-full shrink-0 items-center"
         style={{ paddingLeft: isMac && !isFullscreen ? MAC_TRAFFIC_LIGHTS_INSET : 4 }}
       >
+        {leadingNav}
         <button
           type="button"
           className="flex items-center justify-center rounded-md p-1 text-neutral-500 transition-colors hover:bg-neutral-200/60 hover:text-neutral-800"

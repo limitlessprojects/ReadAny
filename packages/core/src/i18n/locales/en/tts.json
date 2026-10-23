@@ -36,6 +36,10 @@
       "openai-compatible": {
         "label": "OpenAI Compatible",
         "description": "Custom OpenAI audio/speech or chat audio endpoint."
+      },
+      "gemini": {
+        "label": "Gemini TTS",
+        "description": "Google Gemini neural voices — studio-grade naturalness; the demo proxy can serve the API key."
       }
     },
     "providerCategory": {
@@ -143,7 +147,11 @@
     "systemVoiceNote": "Choose the system voice in your device settings",
     "browserVoiceNote": "Choose the system voice in your device settings",
     "stop": "Stop",
-    "noTextFound": "No readable text found on this page"
+    "noTextFound": "No readable text found on this page",
+    "geminiStyleHint": "e.g. warm and unhurried, like a bedtime story",
+    "geminiStyleDesc": "Style hint — spoken inline by 2.5-era models; 3.8 voices carry their own delivery.",
+    "geminiKeyPlaceholder": "Optional on web",
+    "geminiKeyHint": "Leave empty on the web demo — the dev server injects the key server-side."
   },
   "fonts": {
     "title": "Fonts",

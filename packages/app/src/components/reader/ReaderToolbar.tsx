@@ -1,6 +1,7 @@
 import { SyncButton } from "@/components/ui/SyncButton";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsNarrowViewport } from "@/hooks/use-is-narrow-viewport";
 import { toggleWindowFullscreen } from "@/lib/window-fullscreen";
 import { useAnnotationStore } from "@/stores/annotation-store";
 import { useAppStore } from "@/stores/app-store";
@@ -97,6 +98,11 @@ export function ReaderToolbar({
   const { t } = useTranslation();
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const tab = useReaderStore((s) => s.tabs[tabId]);
+  // Phone-width viewports: the full desktop toolbar (sync + PDF zoom widget +
+  // pin + fullscreen) overflows the screen and pushes Ask AI off the right
+  // edge. Drop the desktop-only controls; touch zoom handles PDF scaling.
+  // (Called before the early return below — rules of hooks.)
+  const isNarrowViewport = useIsNarrowViewport();
   const canGoBack = useReaderStore((s) => s.canGoBack(tabId));
   const goBack = useReaderStore((s) => s.goBack);
   const { isOpen: isNotebookOpen, toggleNotebook } = useNotebookStore();
@@ -212,14 +218,14 @@ export function ReaderToolbar({
       </div>
 
       {/* Center: chapter title */}
-      <div className="absolute inset-x-0 flex justify-center pointer-events-none">
-        <span className="max-w-[200px] truncate text-xs text-foreground">
+      <div className="pointer-events-none absolute inset-x-0 flex justify-center">
+        <span className="max-w-[110px] truncate text-xs text-foreground sm:max-w-[200px]">
           {tab.chapterTitle || t("reader.untitled")}
         </span>
       </div>
 
       {/* Right: translate + TTS + search + AI chat + settings */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-0.5">
         <ChapterTranslationMenu
           state={chapterTranslationState}
           onStart={onChapterTranslationStart}
@@ -228,8 +234,8 @@ export function ReaderToolbar({
           onToggleTranslationVisible={onToggleTranslationVisible}
           onReset={onChapterTranslationReset}
         />
-        <SyncButton iconSize={14} className="h-7 w-7" />
-        {isFixedLayout && (
+        {!isNarrowViewport && <SyncButton iconSize={14} className="h-7 w-7" />}
+        {isFixedLayout && !isNarrowViewport && (
           <div
             className="mx-0.5 flex h-7 items-center gap-0.5 rounded-sm border border-border/50 bg-muted/40 px-0.5"
             aria-label={t("reader.pdfZoom")}
@@ -290,15 +296,17 @@ export function ReaderToolbar({
         >
           <Search className="h-3.5 w-3.5" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`h-7 w-7 ${isPinned ? "bg-primary/10 text-primary" : ""}`}
-          onClick={onTogglePinned}
-          title={isPinned ? t("reader.unpinToolbar") : t("reader.pinToolbar")}
-        >
-          <Pin className="h-3.5 w-3.5" />
-        </Button>
+        {!isNarrowViewport && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-7 w-7 ${isPinned ? "bg-primary/10 text-primary" : ""}`}
+            onClick={onTogglePinned}
+            title={isPinned ? t("reader.unpinToolbar") : t("reader.pinToolbar")}
+          >
+            <Pin className="h-3.5 w-3.5" />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -308,22 +316,24 @@ export function ReaderToolbar({
         >
           <MessageSquare className="h-3.5 w-3.5" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={async () => {
-            try {
-              const { getCurrentWindow } = await import("@tauri-apps/api/window");
-              const win = getCurrentWindow();
-              await toggleWindowFullscreen(win);
-            } catch (err) {
-              console.warn("[Reader] Failed to toggle fullscreen:", err);
-            }
-          }}
-        >
-          <Maximize className="h-3.5 w-3.5" />
-        </Button>
+        {!isNarrowViewport && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={async () => {
+              try {
+                const { getCurrentWindow } = await import("@tauri-apps/api/window");
+                const win = getCurrentWindow();
+                await toggleWindowFullscreen(win);
+              } catch (err) {
+                console.warn("[Reader] Failed to toggle fullscreen:", err);
+              }
+            }}
+          >
+            <Maximize className="h-3.5 w-3.5" />
+          </Button>
+        )}
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleSettings}>
           <Settings className="h-3.5 w-3.5" />
         </Button>

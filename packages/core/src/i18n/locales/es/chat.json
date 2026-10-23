@@ -59,7 +59,12 @@
     "selectAndCopy": "Mantén presionado el texto para seleccionar y copiar",
     "selectBooks": "Seleccionar contexto de libros",
     "threads": "Conversaciones",
-    "untitled": "Sin título"
+    "untitled": "Sin título",
+    "dictationErrorPermission": "Micrófono bloqueado — permite el acceso en la configuración del navegador.",
+    "dictationErrorNetwork": "El dictado necesita conexión a internet.",
+    "dictationErrorNoSpeech": "No se escuchó nada — habla un poco más fuerte.",
+    "dictationErrorMic": "No se encontró micrófono.",
+    "dictationErrorGeneric": "Problema con el dictado — inténtalo de nuevo."
   },
   "streaming": {
     "thinking": "Pensando...",

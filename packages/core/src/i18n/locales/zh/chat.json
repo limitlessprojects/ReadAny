@@ -60,7 +60,12 @@
     "selectAndCopy": "长按选中文字复制",
     "selectBooks": "选择书籍上下文",
     "threads": "对话列表",
-    "untitled": "新对话"
+    "untitled": "新对话",
+    "dictationErrorPermission": "麦克风被阻止——请在浏览器设置中允许麦克风权限。",
+    "dictationErrorNetwork": "语音输入需要网络连接。",
+    "dictationErrorNoSpeech": "没有听到声音——请稍微大声一点。",
+    "dictationErrorMic": "未找到麦克风。",
+    "dictationErrorGeneric": "语音输入出现问题——请重试。"
   },
   "streaming": {
     "thinking": "正在思考...",

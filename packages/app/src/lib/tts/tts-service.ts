@@ -11,11 +11,14 @@ export {
   TTS_PROVIDER_DEFINITIONS,
   XIAOMI_TTS_VOICES,
   DASHSCOPE_VOICES,
+  GEMINI_TTS_VOICES,
+  GEMINI_TTS_MODELS,
   GOOGLE_TTS_LANGS,
   splitIntoChunks,
   BrowserTTSPlayer,
   DashScopeTTSPlayer,
   EdgeTTSPlayer,
+  GeminiTTSPlayer,
   GoogleTranslateTTSPlayer,
   OpenAICompatibleTTSPlayer,
   XiaomiTTSPlayer,
@@ -28,6 +31,7 @@ import {
   BrowserTTSPlayer,
   DashScopeTTSPlayer,
   EdgeTTSPlayer,
+  GeminiTTSPlayer,
   GoogleTranslateTTSPlayer,
   OpenAICompatibleTTSPlayer,
   XiaomiTTSPlayer,
@@ -37,6 +41,7 @@ export const systemTTS = new BrowserTTSPlayer();
 export const browserTTS = systemTTS;
 export const edgeTTS = new EdgeTTSPlayer();
 export const googleTTS = new GoogleTranslateTTSPlayer();
+export const geminiTTS = new GeminiTTSPlayer();
 export const dashscopeTTS = new DashScopeTTSPlayer();
 export const xiaomiTTS = new XiaomiTTSPlayer();
 export const openAICompatibleTTS = new OpenAICompatibleTTSPlayer();

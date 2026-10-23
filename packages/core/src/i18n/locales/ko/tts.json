@@ -36,6 +36,10 @@
       "openai-compatible": {
         "label": "OpenAI 호환",
         "description": "OpenAI audio/speech 또는 채팅 오디오 호환 엔드포인트."
+      },
+      "gemini": {
+        "label": "Gemini TTS",
+        "description": "Google Gemini 뉴럴 보이스 — 스튜디오급 자연스러움. 데모 프록시가 API 키를 제공할 수 있습니다."
       }
     },
     "providerCategory": {
@@ -142,7 +146,11 @@
     "engineDescDashscope": "알리바바클라우드 통의 · 중국어 최적화",
     "engineDescSystem": "시스템 내장 · 무료",
     "player": "TTS 플레이어",
-    "listeningToBook": "오디오북 재생 중"
+    "listeningToBook": "오디오북 재생 중",
+    "geminiStyleHint": "예: 잔잔하고 느긋한, 동화 낭독처럼",
+    "geminiStyleDesc": "스타일 힌트 — 2.5 계열 모델은 인라인으로 읽고, 3.8 보이스는 고유의 톤을 지닙니다.",
+    "geminiKeyPlaceholder": "웹에서는 선택 사항",
+    "geminiKeyHint": "웹 데모에서는 비워 두세요 — 서버가 키를 주입합니다."
   },
   "fonts": {
     "title": "글꼴",

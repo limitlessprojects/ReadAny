@@ -59,7 +59,12 @@
     "selectAndCopy": "テキストを長押しして選択・コピー",
     "selectBooks": "本のコンテキストを選択",
     "threads": "会話一覧",
-    "untitled": "無題"
+    "untitled": "無題",
+    "dictationErrorPermission": "マイクがブロックされています — ブラウザ設定でマイクを許可してください。",
+    "dictationErrorNetwork": "音声入力にはネット接続が必要です。",
+    "dictationErrorNoSpeech": "声が聞き取れませんでした — もう少し大きな声で。",
+    "dictationErrorMic": "マイクが見つかりません。",
+    "dictationErrorGeneric": "音声入力に問題があります — もう一度お試しください。"
   },
   "streaming": {
     "thinking": "考え中...",

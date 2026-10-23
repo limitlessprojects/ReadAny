@@ -36,6 +36,10 @@
       "openai-compatible": {
         "label": "OpenAI 相容",
         "description": "自訂 OpenAI audio/speech 或聊天音訊介面"
+      },
+      "gemini": {
+        "label": "Gemini TTS",
+        "description": "Google Gemini 神經語音——錄音室級自然度；示範代理可在伺服器端注入金鑰。"
       }
     },
     "providerCategory": {
@@ -142,7 +146,11 @@
     "nextChapter": "下一章",
     "systemVoiceNote": "系統音色請在裝置系統設定中選擇",
     "browserVoiceNote": "系統音色請在裝置系統設定中選擇",
-    "stop": "停止"
+    "stop": "停止",
+    "geminiStyleHint": "例如：溫暖從容，像講睡前故事",
+    "geminiStyleDesc": "風格提示——2.5 系模型會內聯讀出；3.8 聲音自帶語氣。",
+    "geminiKeyPlaceholder": "Web 端可留空",
+    "geminiKeyHint": "Web 示範中留空即可——開發伺服器在伺服器端注入金鑰。"
   },
   "fonts": {
     "title": "字型",

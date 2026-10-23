@@ -36,6 +36,10 @@
       "openai-compatible": {
         "label": "OpenAI互換",
         "description": "OpenAI audio/speech またはチャット音声互換エンドポイント。"
+      },
+      "gemini": {
+        "label": "Gemini TTS",
+        "description": "Google Gemini のニューラル音声 — スタジオ級の自然さ。デモのプロキシが API キーを提供できます。"
       }
     },
     "providerCategory": {
@@ -142,7 +146,11 @@
     "engineDescDashscope": "アリババクラウド通義 · 中国語最適化",
     "engineDescSystem": "システム内蔵 · 無料",
     "player": "TTSプレーヤー",
-    "listeningToBook": "オーディオブック再生中"
+    "listeningToBook": "オーディオブック再生中",
+    "geminiStyleHint": "例：穏やかでゆっくり、寝かしつけの読み聞かせのように",
+    "geminiStyleDesc": "スタイルのヒント — 2.5 系モデルはインラインで読み上げ、3.8 の声は独自の抑揚を持ちます。",
+    "geminiKeyPlaceholder": "Web では省略可能",
+    "geminiKeyHint": "Web デモでは空のままで OK — サーバーがキーを注入します。"
   },
   "fonts": {
     "title": "フォント",

@@ -34,13 +34,18 @@ const GEMINI_TARGET = process.env.GEMINI_API_TARGET || "http://127.0.0.1:8787";
 // @ts-expect-error process is a nodejs global
 const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
 
-/** Inject a bearer key server-side when the client didn't send one. */
+/** Inject the server-side key when the client didn't send one. The OpenAI-
+ *  compat surface authenticates with Bearer; the native v1beta surface
+ *  (generateContent — used by Gemini TTS) with x-goog-api-key. Set both. */
 function injectBearerOnProxyReq(key: string) {
   return (proxyReq: import("node:http").ClientRequest) => {
     if (key) {
       const auth = proxyReq.getHeader("authorization");
       const hasKey = typeof auth === "string" && auth.length > "Bearer ".length;
-      if (!hasKey) proxyReq.setHeader("Authorization", `Bearer ${key}`);
+      if (!hasKey) {
+        proxyReq.setHeader("Authorization", `Bearer ${key}`);
+        proxyReq.setHeader("x-goog-api-key", key);
+      }
     }
   };
 }

@@ -15,10 +15,14 @@ export type {
 export {
   createDefaultTTSProfiles,
   DEFAULT_TTS_CONFIG,
+  DEFAULT_GEMINI_TTS_MODEL,
+  DEFAULT_GEMINI_TTS_VOICE,
   DEFAULT_XIAOMI_STYLE_PROMPT,
   DEFAULT_XIAOMI_TTS_BASE_URL,
   DEFAULT_XIAOMI_TTS_VOICE,
   DASHSCOPE_VOICES,
+  GEMINI_TTS_MODELS,
+  GEMINI_TTS_VOICES,
   GOOGLE_TTS_LANGS,
   getActiveTTSProfile,
   getTTSProviderDefinition,
@@ -52,6 +56,14 @@ export {
   looksLikeSwahiliText,
   resolveGoogleTtsLang,
 } from "./google-translate-tts";
+
+// Gemini TTS (native neural voices via the Gemini API)
+export {
+  GeminiTTSPlayer,
+  buildGeminiTTSBody,
+  buildGeminiTTSText,
+  buildGeminiTTSUrl,
+} from "./gemini-tts";
 
 // Players
 export {

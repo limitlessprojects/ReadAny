@@ -24,6 +24,7 @@ import {
   XiaomiTTSPlayer,
 } from "../tts/tts-players";
 import { GoogleTranslateTTSPlayer } from "../tts/google-translate-tts";
+import { GeminiTTSPlayer as GeminiTTSPlayerImpl } from "../tts/gemini-tts";
 import type { ITTSPlayer, TTSEngine, TTSConfig, TTSProfile } from "../tts/types";
 import { DEFAULT_TTS_CONFIG, normalizeTTSConfig } from "../tts/types";
 import { looksLikeSwahiliText } from "../tts/google-translate-tts";
@@ -38,6 +39,7 @@ export interface TTSPlayerFactories {
   createSystemTTS: () => ITTSPlayer;
   createEdgeTTS: () => ITTSPlayer;
   createGoogleTTS: () => ITTSPlayer;
+  createGeminiTTS: () => ITTSPlayer;
   createDashScopeTTS: () => ITTSPlayer;
   createXiaomiTTS: () => ITTSPlayer;
   createOpenAICompatibleTTS: () => ITTSPlayer;
@@ -48,6 +50,7 @@ const defaultFactories: TTSPlayerFactories = {
   createSystemTTS: () => new BrowserTTSPlayer(),
   createEdgeTTS: () => new EdgeTTSPlayer(),
   createGoogleTTS: () => new GoogleTranslateTTSPlayer(),
+  createGeminiTTS: () => new GeminiTTSPlayerImpl(),
   createDashScopeTTS: () => new DashScopeTTSPlayer(),
   createXiaomiTTS: () => new XiaomiTTSPlayer(),
   createOpenAICompatibleTTS: () => new OpenAICompatibleTTSPlayer(),
@@ -72,6 +75,7 @@ export function setTTSPlayerFactories(factories: Partial<TTSPlayerFactories>): v
   _systemTTS = null;
   _edgeTTS = null;
   _googleTTS = null;
+  _geminiTTS = null;
   _dashscopeTTS = null;
   _xiaomiTTS = null;
   _openAICompatibleTTS = null;
@@ -81,6 +85,7 @@ export function setTTSPlayerFactories(factories: Partial<TTSPlayerFactories>): v
 let _systemTTS: ITTSPlayer | null = null;
 let _edgeTTS: ITTSPlayer | null = null;
 let _googleTTS: ITTSPlayer | null = null;
+let _geminiTTS: ITTSPlayer | null = null;
 let _dashscopeTTS: ITTSPlayer | null = null;
 let _xiaomiTTS: ITTSPlayer | null = null;
 let _openAICompatibleTTS: ITTSPlayer | null = null;
@@ -107,6 +112,11 @@ function getEdgeTTS(): ITTSPlayer {
 function getGoogleTTS(): ITTSPlayer {
   if (!_googleTTS) _googleTTS = _factories.createGoogleTTS();
   return _googleTTS;
+}
+
+function getGeminiTTS(): ITTSPlayer {
+  if (!_geminiTTS) _geminiTTS = _factories.createGeminiTTS();
+  return _geminiTTS;
 }
 
 function getDashScopeTTS(): ITTSPlayer {
@@ -175,6 +185,15 @@ function syncProfileUpdatesFromLegacyFields(
     if (updates.xiaomiStylePrompt !== undefined) {
       profileUpdates.stylePrompt = updates.xiaomiStylePrompt;
     }
+  } else if (targetProvider === "google") {
+    if (updates.googleTtsLang !== undefined) profileUpdates.voice = updates.googleTtsLang;
+  } else if (targetProvider === "gemini") {
+    if (updates.geminiTtsModel !== undefined) profileUpdates.model = updates.geminiTtsModel;
+    if (updates.geminiVoice !== undefined) profileUpdates.voice = updates.geminiVoice;
+    if (updates.geminiStylePrompt !== undefined) {
+      profileUpdates.stylePrompt = updates.geminiStylePrompt;
+    }
+    if (updates.geminiTtsApiKey !== undefined) profileUpdates.apiKey = updates.geminiTtsApiKey;
   } else if (targetProvider === "openai-compatible") {
     if (updates.openaiTtsBaseUrl !== undefined) profileUpdates.baseUrl = updates.openaiTtsBaseUrl;
     if (updates.openaiTtsApiKey !== undefined) profileUpdates.apiKey = updates.openaiTtsApiKey;
@@ -221,6 +240,7 @@ function detachAndStopAllPlayers(): void {
   detachAndStopPlayer(_systemTTS);
   detachAndStopPlayer(_edgeTTS);
   detachAndStopPlayer(_googleTTS);
+  detachAndStopPlayer(_geminiTTS);
   detachAndStopPlayer(_dashscopeTTS);
   detachAndStopPlayer(_xiaomiTTS);
   detachAndStopPlayer(_openAICompatibleTTS);
@@ -235,6 +255,9 @@ function getPlayerForConfig(config: TTSConfig): ITTSPlayer {
   }
   if (config.engine === "google") {
     return getGoogleTTS();
+  }
+  if (config.engine === "gemini") {
+    return getGeminiTTS();
   }
   if (config.engine === "xiaomi") {
     return getXiaomiTTS();
@@ -256,6 +279,10 @@ function buildEngineFallbackChain(engine: TTSEngine): TTSEngine[] {
       return ["edge", "google", "system"];
     case "google":
       return ["google", "edge", "system"];
+    case "gemini":
+      // Gemini can be geo-blocked or out of free-tier quota — degrade to the
+      // keyless neural voices, then the always-available system engine.
+      return ["gemini", "edge", "google", "system"];
     case "dashscope":
     case "xiaomi":
     case "openai-compatible":

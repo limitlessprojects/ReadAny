@@ -36,6 +36,10 @@
       "openai-compatible": {
         "label": "OpenAI 兼容",
         "description": "自定义 OpenAI audio/speech 或聊天音频接口"
+      },
+      "gemini": {
+        "label": "Gemini TTS",
+        "description": "Google Gemini 神经语音——录音棚级自然度；演示代理可在服务端注入密钥。"
       }
     },
     "providerCategory": {
@@ -143,7 +147,11 @@
     "systemVoiceNote": "系统音色请在设备系统设置中选择",
     "browserVoiceNote": "系统音色请在设备系统设置中选择",
     "stop": "停止",
-    "noTextFound": "当前页面未找到可朗读的文本"
+    "noTextFound": "当前页面未找到可朗读的文本",
+    "geminiStyleHint": "例如：温暖从容，像讲睡前故事",
+    "geminiStyleDesc": "风格提示——2.5 系模型会内联读出；3.8 声音自带语气。",
+    "geminiKeyPlaceholder": "Web 端可留空",
+    "geminiKeyHint": "Web 演示中留空即可——开发服务器在服务端注入密钥。"
   },
   "fonts": {
     "title": "字体",

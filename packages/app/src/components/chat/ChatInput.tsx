@@ -5,7 +5,7 @@
  */
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { AttachedQuote } from "@readany/core/types";
-import { Brain, EyeOff, Mic, Quote, Send, Square, X } from "lucide-react";
+import { AlertCircle, Brain, EyeOff, Mic, Quote, Send, Square, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 export type { AttachedQuote };
@@ -29,6 +29,23 @@ function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
   return (w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null) as
     | (new () => SpeechRecognitionLike)
     | null;
+}
+
+/** Map Web Speech API error codes to a user-facing hint key. */
+function dictationErrorKey(code: string): string {
+  switch (code) {
+    case "not-allowed":
+    case "service-not-allowed":
+      return "chat.dictationErrorPermission";
+    case "network":
+      return "chat.dictationErrorNetwork";
+    case "no-speech":
+      return "chat.dictationErrorNoSpeech";
+    case "audio-capture":
+      return "chat.dictationErrorMic";
+    default:
+      return "chat.dictationErrorGeneric";
+  }
 }
 
 interface ChatInputProps {
@@ -62,16 +79,25 @@ export function ChatInput({
   const [deepThinking, setDeepThinking] = useState(false);
   const [spoilerFree, setSpoilerFree] = useState(false);
   const [listening, setListening] = useState(false);
+  const [dictationError, setDictationError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const speechSupported = useMemo(() => !!getSpeechRecognitionCtor(), []);
+
+  const showDictationError = useCallback((message: string) => {
+    setDictationError(message);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    errorTimerRef.current = setTimeout(() => setDictationError(null), 5000);
+  }, []);
 
   // Stop dictation when the input unmounts (tab switch etc.)
   useEffect(() => {
     return () => {
       recognitionRef.current?.abort();
       recognitionRef.current = null;
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     };
   }, []);
 
@@ -82,6 +108,7 @@ export function ChatInput({
     }
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) return;
+    setDictationError(null);
     // Abort any previous handle before starting a fresh one.
     recognitionRef.current?.abort();
     const recognition = new Ctor();
@@ -104,7 +131,16 @@ export function ChatInput({
         }
       });
     };
-    recognition.onerror = () => setListening(false);
+    recognition.onerror = (event) => {
+      const code =
+        typeof event === "object" && event !== null && "error" in event
+          ? String((event as { error?: unknown }).error ?? "unknown")
+          : "unknown";
+      // no-speech is a soft miss — the mic button stays usable; surface it
+      // instead of failing silently (the "too quiet" bug class).
+      showDictationError(t(dictationErrorKey(code), "Dictation problem — try again"));
+      setListening(false);
+    };
     recognition.onend = () => {
       setListening(false);
       recognitionRef.current = null;
@@ -116,8 +152,9 @@ export function ChatInput({
     } catch {
       setListening(false);
       recognitionRef.current = null;
+      showDictationError(t("chat.dictationErrorGeneric", "Dictation problem — try again"));
     }
-  }, [listening, i18n.language]);
+  }, [listening, i18n.language, showDictationError, t]);
 
   const resolvedPlaceholder = placeholder || t("chat.askPlaceholder");
 
@@ -293,6 +330,12 @@ export function ChatInput({
       {spoilerFree && (
         <p className="mt-1.5 text-center text-xs text-muted-foreground">
           {t("chat.spoilerFreeHint")}
+        </p>
+      )}
+      {dictationError && (
+        <p className="mt-1.5 flex items-center justify-center gap-1.5 text-center text-xs text-destructive">
+          <AlertCircle className="size-3 shrink-0" />
+          <span>{dictationError}</span>
         </p>
       )}
     </div>

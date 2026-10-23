@@ -34,6 +34,16 @@ export function shouldRespeakForSynthChange(prev: TTSConfig, next: TTSConfig): b
         next.openaiTtsStylePrompt !== prev.openaiTtsStylePrompt)
     );
   }
+  if (next.engine === "gemini") {
+    // The web player applies rate via playbackRate (no re-synthesis needed),
+    // but voice/model/style change the synthesis itself.
+    return (
+      next.geminiTtsModel !== prev.geminiTtsModel ||
+      next.geminiVoice !== prev.geminiVoice ||
+      next.geminiStylePrompt !== prev.geminiStylePrompt ||
+      next.rate !== prev.rate
+    );
+  }
   if (next.engine === "edge") {
     return (
       next.edgeVoice !== prev.edgeVoice || next.rate !== prev.rate || next.pitch !== prev.pitch

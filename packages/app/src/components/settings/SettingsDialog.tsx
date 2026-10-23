@@ -79,22 +79,22 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex min-h-[80vh] max-h-[80vh] w-[800px] max-w-[800px] flex-col overflow-hidden p-0">
+      <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-screen max-w-[100vw] flex-col overflow-hidden rounded-none border-0 p-0 sm:h-auto sm:min-h-[80vh] sm:max-h-[80vh] sm:w-[800px] sm:max-w-[800px] sm:rounded-lg sm:border">
         {/* Header */}
         <div className="flex-shrink-0 border-b border-border px-4 py-3.5">
           <DialogTitle className="text-base font-semibold">{t("settings.title")}</DialogTitle>
           <p className="mt-0.5 text-xs text-muted-foreground/60">{t("settings.realtimeHint")}</p>
         </div>
 
-        <div className="flex min-h-0 flex-1">
-          {/* Sidebar */}
-          <div className="w-48 flex-shrink-0 overflow-y-auto border-r border-border p-2.5">
-            <nav className="space-y-0.5">
+        <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+          {/* Sidebar — horizontal chip strip on phones, left nav on desktop */}
+          <div className="w-full shrink-0 overflow-x-auto border-b border-border p-2 sm:w-48 sm:overflow-y-auto sm:border-b-0 sm:border-r">
+            <nav className="flex gap-1 sm:flex-col sm:gap-0 sm:space-y-0.5">
               {TAB_IDS.map((id) => (
                 <button
                   key={id}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors",
+                    "flex w-auto shrink-0 items-center justify-between gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors sm:w-full",
                     settingsTab === id
                       ? "bg-muted/80 font-medium text-foreground"
                       : "text-muted-foreground hover:bg-muted/50",
