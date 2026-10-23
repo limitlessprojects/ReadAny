@@ -18,9 +18,12 @@ on:
       - "packages/foliate-js/**"
       - ".github/workflows/android-apk.yml"
 
+# GLOBAL (not per-ref): two refs pushing at once must not race on the
+# rolling release — one run's cleanup step deleted the other's release
+# mid-upload once already.
 concurrency:
-  group: android-apk-${{ github.ref }}
-  cancel-in-progress: true
+  group: android-apk
+  cancel-in-progress: false
 
 jobs:
   apk:
@@ -87,15 +90,24 @@ jobs:
               -H "Authorization: Bearer $GH_TOKEN"
           fi
           git push origin ":refs/tags/$TAG" 2>/dev/null || true
-          release=$(curl -sS -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" \
-            -H "Authorization: Bearer $GH_TOKEN" -H "content-type: application/json" -d "{
-              \"tag_name\": \"$TAG\",
-              \"target_commitish\": \"${GITHUB_SHA}\",
-              \"name\": \"ReadAny — latest Android build\",
-              \"body\": \"Installable demo APK (sideload: allow installs from this source). AI works out of the box via the free demo proxy. Built from commit ${GITHUB_SHA}.\",
-              \"prerelease\": false
-            }")
-          upload_url=$(echo "$release" | jq -r '.upload_url' | sed 's/{.*}//')
+          # Tag creation races with any in-flight run of the same step —
+          # retry until the release POST yields a real upload_url.
+          upload_url=""
+          for i in 1 2 3 4 5 6; do
+            release=$(curl -sS -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" \
+              -H "Authorization: Bearer $GH_TOKEN" -H "content-type: application/json" -d "{
+                \"tag_name\": \"$TAG\",
+                \"target_commitish\": \"${GITHUB_SHA}\",
+                \"name\": \"ReadAny — latest Android build\",
+                \"body\": \"Installable demo APK (sideload: allow installs from this source). AI works out of the box via the free demo proxy. Built from commit ${GITHUB_SHA}.\",
+                \"prerelease\": false
+              }")
+            upload_url=$(echo "$release" | jq -r '.upload_url // empty' | sed 's/{.*}//')
+            if [ -n "$upload_url" ] && [ "$upload_url" != "null" ]; then break; fi
+            echo "release create attempt $i failed: $(echo "$release" | head -c 200)"
+            sleep 15
+          done
+          test -n "$upload_url" && test "$upload_url" != "null"
           curl -sS -X POST "$upload_url?name=ReadAny.apk" \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "content-type: application/vnd.android.package-archive" \
