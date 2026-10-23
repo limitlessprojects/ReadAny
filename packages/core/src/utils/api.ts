@@ -33,6 +33,14 @@ export const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
     placeholder: "https://api.openai.com",
     keyPlaceholder: "sk-...",
   },
+  codex: {
+    id: "codex",
+    name: "OpenAI Codex",
+    defaultBaseUrl: "https://api.openai.com",
+    needsV1Suffix: true,
+    placeholder: "https://api.openai.com",
+    keyPlaceholder: "sk-...",
+  },
   atlascloud: {
     id: "atlascloud",
     name: "Atlas Cloud",

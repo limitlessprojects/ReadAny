@@ -42,6 +42,7 @@ function useProviderOptions(): { value: AIProviderType; label: string }[] {
   return useMemo(
     () => [
       { value: "openai", label: "OpenAI" },
+      { value: "codex", label: "OpenAI Codex" },
       { value: "cerebras", label: "Cerebras" },
       { value: "atlascloud", label: "Atlas Cloud" },
       { value: "anthropic", label: "Anthropic" },

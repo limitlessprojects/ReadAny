@@ -124,6 +124,7 @@ export interface SemanticContext {
 
 export type AIProviderType =
   | "openai"
+  | "codex"
   | "atlascloud"
   | "anthropic"
   | "google"
