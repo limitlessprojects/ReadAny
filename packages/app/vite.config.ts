@@ -66,6 +66,8 @@ export default defineConfig(async () => ({
               __dirname,
               "src/lib/platform/tauri-shim-dialog.ts",
             ),
+            "@tauri-apps/api/core": path.resolve(__dirname, "src/lib/platform/tauri-shim-core.ts"),
+            "@tauri-apps/api/path": path.resolve(__dirname, "src/lib/platform/tauri-shim-path.ts"),
           }
         : {}),
       "@": path.resolve(__dirname, "./src"),
@@ -78,7 +80,23 @@ export default defineConfig(async () => ({
   },
   optimizeDeps: {
     // Exclude foliate-js pdf.js from pre-bundling so that @pdfjs alias works
-    exclude: ["foliate-js/pdf.js"],
+    exclude: [
+      "foliate-js/pdf.js",
+      // Tauri plugins import @tauri-apps/api/core internally; when the WEB_SHIM
+      // alias redirects that specifier to a source file, esbuild dep scanning
+      // fails. Serving them unbundled keeps per-request alias resolution.
+      "@tauri-apps/api",
+      "@tauri-apps/plugin-fs",
+      "@tauri-apps/plugin-dialog",
+      "@tauri-apps/plugin-http",
+      "@tauri-apps/plugin-websocket",
+      "@tauri-apps/plugin-clipboard-manager",
+      "@tauri-apps/plugin-opener",
+      "@tauri-apps/plugin-process",
+      "@tauri-apps/plugin-updater",
+      "@tauri-apps/plugin-window-state",
+      "@tauri-apps/plugin-sql",
+    ],
   },
   clearScreen: false,
   server: {

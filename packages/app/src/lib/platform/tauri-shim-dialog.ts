@@ -55,6 +55,40 @@ export function getLastPickerInput(): HTMLInputElement | null {
   return lastPickerInput;
 }
 
+/**
+ * Automation seam: when a dialog is pending, resolves it with the given File
+ * objects (stashed into the WebVFS exactly like a real pick). lets demo
+ * scripts and tests drive imports deterministically in headless browsers,
+ * where Chromium auto-cancels programmatic file choosers.
+ */
+declare global {
+  interface Window {
+    __readanyResolveFiles?: (files: File[]) => Promise<string[] | null>;
+  }
+}
+
+type PendingDialog = {
+  resolve: (value: string | string[] | null) => void;
+  multiple: boolean;
+};
+
+let pendingDialog: PendingDialog | null = null;
+
+if (typeof window !== "undefined") {
+  window.__readanyResolveFiles = async (files: File[]) => {
+    if (!pendingDialog) return null;
+    const dialog = pendingDialog;
+    pendingDialog = null;
+    if (!files || files.length === 0) {
+      dialog.resolve(null);
+      return null;
+    }
+    const paths = await stash(files);
+    dialog.resolve(dialog.multiple ? paths : (paths[0] ?? null));
+    return paths;
+  };
+}
+
 export function open(options?: DialogOpenOptions): Promise<string | string[] | null> {
   const multiple = options?.multiple ?? false;
 
@@ -88,6 +122,14 @@ export function open(options?: DialogOpenOptions): Promise<string | string[] | n
     const cleanup = () => {
       input.remove();
       if (lastPickerInput === input) lastPickerInput = null;
+      if (pendingDialog && pendingDialog.resolve === resolveWithCleanup) pendingDialog = null;
+    };
+
+    const resolveWithCleanup = (value: string | string[] | null) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
     };
 
     input.addEventListener("change", async () => {
@@ -105,14 +147,19 @@ export function open(options?: DialogOpenOptions): Promise<string | string[] | n
 
     // Cancel: Tauri resolves null when the dialog is dismissed.
     input.addEventListener("cancel", () => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolve(null);
+      resolveWithCleanup(null);
     });
 
+    pendingDialog = { resolve: resolveWithCleanup, multiple };
     lastPickerInput = input;
     document.body.appendChild(input);
+    // Under browser automation (navigator.webdriver) Chromium auto-cancels
+    // programmatic file choosers immediately — skip the native click and let
+    // the __readanyResolveFiles seam resolve the dialog instead.
+    if (navigator.webdriver === true) {
+      console.log("[DialogShim] automation mode — awaiting __readanyResolveFiles");
+      return;
+    }
     input.click();
   });
 }

@@ -124,8 +124,34 @@ export async function cleanupOrphanedSyncRows(databaseArg?: IDatabase): Promise<
   }
 }
 
+// Web build: module-level store initializers can call getDB() before the
+// explicit initDatabase() in main.tsx resolves — gate the very first DB load
+// on schema creation (idempotent, web only).
+let webSchemaEnsuring = false;
+let webSchemaEnsured = false;
+
 export async function getDB(): Promise<IDatabase> {
   if (db) return db;
+
+  try {
+    if (
+      !webSchemaEnsured &&
+      !webSchemaEnsuring &&
+      getPlatformService().platformType === "web"
+    ) {
+      webSchemaEnsuring = true;
+      try {
+        await initDatabase();
+        webSchemaEnsured = true;
+      } finally {
+        webSchemaEnsuring = false;
+      }
+    }
+  } catch {
+    // fall through — callers handle their own errors
+  }
+
+  if (db) return db; // inner initDatabase may have loaded it while gating
 
   if (!dbLoadPromise) {
     dbLoadPromise = (async () => {
@@ -327,6 +353,10 @@ export async function insertTombstone(
 export async function initDatabase(): Promise<void> {
   if (dbInitialized) return;
   if (dbInitPromise) return dbInitPromise;
+
+  // Mark schema-ensuring BEFORE any getDB() call so the web schema gate in
+  // getDB doesn't await this very promise (circular await = deadlock).
+  webSchemaEnsuring = true;
 
   dbInitPromise = (async () => {
     await runSerializedDbTask(async () => {
@@ -742,6 +772,8 @@ export async function initDatabase(): Promise<void> {
     await initLocalDatabase();
   })().finally(() => {
     dbInitPromise = null;
+    webSchemaEnsuring = false;
+    webSchemaEnsured = true;
   });
 
   return dbInitPromise;
