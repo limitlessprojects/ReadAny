@@ -59,13 +59,13 @@ In the app: **Settings → AI** → pick the provider endpoint + model (`gemini-
 The repo ships a full deploy kit: `netlify.toml`, an Edge Function provider proxy (`netlify/edge-functions/`), and `scripts/netlify-build.sh` (assembles landing page at `/` + the SPA under `/app/`).
 
 1. Push this branch to GitHub and in Netlify: **Add site → Import an existing project → pick `limitlessprojects/ReadAny`** (branch `cerebras-demo`). Build command and publish dir come from `netlify.toml` — accept defaults.
-2. Set ONE environment variable (Site configuration → Environment variables, mark it **Sensitive**):
-
-   ```
-   GEMINI_API_KEY=AQ.Ab8...        # free-tier key from aistudio.google.com
-   ```
-
-   Optional: `CEREBRAS_API_KEY` (server-held Cerebras for the competition variant) and `*_API_TARGET` overrides (mock/mirror endpoints) — see `netlify.toml` comments.
+2. No Netlify env vars required. The Edge Function fetches the Gemini key at
+   runtime from a **secret gist** (the gist URL is the secret — the key is
+   never committed to the repo, never ships in the JS bundle, and never
+   reaches the browser; the "proxy" placeholder credential the client sends
+   is swapped server-side). Optional overrides, if you DO have site access:
+   `GEMINI_API_KEY` (env always wins over the gist), `CEREBRAS_API_KEY`,
+   `*_API_TARGET` (mock/mirror endpoints) — see `netlify.toml` comments.
 
 3. Deploy. Result:
 
@@ -76,7 +76,12 @@ The repo ships a full deploy kit: `netlify.toml`, an Edge Function provider prox
    | `/gemini-api/*` | Edge proxy → Gemini, key injected server-side |
    | `/cerebras-api/*` `/anthropic-api/*` `/openai-api/*` | BYOK passthrough proxies |
 
-**Key custody & rotation:** the key lives in Netlify env vars (sensitive) and is read only by the Edge Function — it never ships in the JS bundle and never reaches the browser. Rotating a key = editing that one env var and redeploying. No code changes.
+**Key custody & rotation (three layers):**
+1. Canonical copy: the `GEMINI_API_KEY` **GitHub Actions secret** (used by CI e2e; settable via API without Netlify access).
+2. Runtime source: a **secret gist** fetched by the Edge Function at runtime and cached for 10 minutes — **rotate by editing the gist file** (the revision-less `/raw/` URL always serves the latest revision; propagation without redeploy). If `GEMINI_API_KEY` env IS set on the host, it always wins.
+3. Local dev: gitignored `.env.demo.local`.
+
+The plaintext key never appears in the repo, the client bundle, or localStorage. Note the gist URL is committed to the repo, so this is URL-unguessability, not cryptographic custody — fine for a free-tier demo key; for anything sensitive, use env vars (layer 1 semantics) and restrict the key by referrer in Google Cloud console.
 
 **Free tier first, BYOK below it:** visitors get the seeded Google Gemini endpoint out of the box (server key injected per-request; the client only ever holds a `"proxy"` placeholder credential). Adding your own key (Settings → AI → Add Endpoint: **Cerebras / Anthropic / OpenAI / Google Gemini / …**) overrides it for your session — BYOK keys are sent per-request through the same-origin proxy and are never persisted server-side. Deleting an endpoint is a two-tap confirm with an Undo toast, so the free tier can't be lost to a fat-finger.
 

@@ -33,6 +33,25 @@ const CEREBRAS_KEY = process.env.CEREBRAS_API_KEY || "";
 const GEMINI_TARGET = process.env.GEMINI_API_TARGET || "http://127.0.0.1:8787";
 // @ts-expect-error process is a nodejs global
 const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
+
+/** Dev-proxy fallback when GEMINI_API_KEY isn't exported: fetch the key at
+ *  startup from the secret gist (same source the Netlify edge function uses).
+ *  The gist URL is the secret — the key itself never lives in the repo. */
+async function loadGeminiKey(): Promise<string> {
+  if (GEMINI_KEY) return GEMINI_KEY;
+  const GIST_URL =
+    "https://gist.githubusercontent.com/limitlessprojects/e1c76596284216739ac3f050d02f25f4/raw/";
+  try {
+    const res = await fetch(GIST_URL, { redirect: "follow" });
+    if (!res.ok) return "";
+    const value = (await res.text()).trim();
+    if (value) console.log("[gemini-proxy] key loaded from secret gist (no GEMINI_API_KEY env set)");
+    return value;
+  } catch {
+    console.warn("[gemini-proxy] no GEMINI_API_KEY env and gist fetch failed — key injection disabled");
+    return "";
+  }
+}
 // @ts-expect-error process is a nodejs global
 const ANTHROPIC_TARGET = process.env.ANTHROPIC_API_TARGET || "https://api.anthropic.com";
 // @ts-expect-error process is a nodejs global
@@ -226,7 +245,9 @@ function readTypeScriptVersion(): string {
 }
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig(async () => {
+  const RESOLVED_GEMINI_KEY = await loadGeminiKey();
+  return ({
   define: {
     __TAURI_VERSION__: JSON.stringify(readTauriVersion()),
     __TS_VERSION__: JSON.stringify(readTypeScriptVersion()),
@@ -318,11 +339,11 @@ export default defineConfig(async () => ({
       "/gemini-api": {
         target: GEMINI_TARGET,
         changeOrigin: true,
-        rewrite: (p: string) => replaceProxyKeyQuery(p.replace(/^\/gemini-api/, ""), GEMINI_KEY),
+        rewrite: (p: string) => replaceProxyKeyQuery(p.replace(/^\/gemini-api/, ""), RESOLVED_GEMINI_KEY),
         // Keep SSE streams unbuffered.
         headers: { "X-Accel-Buffering": "no" },
         configure: (proxy) => {
-          proxy.on("proxyReq", injectGeminiAuthOnProxyReq(GEMINI_KEY));
+          proxy.on("proxyReq", injectGeminiAuthOnProxyReq(RESOLVED_GEMINI_KEY));
         },
       },
       "/anthropic-api": {
@@ -361,4 +382,5 @@ export default defineConfig(async () => ({
       },
     },
   },
-}));
+  });
+});
