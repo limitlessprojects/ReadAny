@@ -535,7 +535,10 @@ export async function seedWebDemoAIEndpointIfUntouched(): Promise<void> {
     endpoints[0].provider === "openai" &&
     !endpoints[0].apiKey &&
     endpoints[0].models.length === 0;
-  if (!isUntouchedDefault) return;
+  if (!isUntouchedDefault) {
+    migrateStaleDemoLiteDefault(store);
+    return;
+  }
 
   store.updateEndpoint("default", {
     name: "Google Gemini",
@@ -544,8 +547,8 @@ export async function seedWebDemoAIEndpointIfUntouched(): Promise<void> {
     baseUrl: "https://generativelanguage.googleapis.com",
     useExactRequestUrl: false,
     // Model list verified against the live API on 2026-10-24. The default
-    // is flash-LITE: free-tier daily quota for gemini-3.8-flash is only
-    // 20 RPD (exhausted by a handful of demo chats), while flash-lite
+    // is flash-LITE: free-tier daily quota for the full flash models is only
+    // ~20 RPD (exhausted by a handful of demo chats), while flash-lite
     // models get hundreds per day.
     models: [
       "gemini-3.1-flash-lite",
@@ -556,5 +559,30 @@ export async function seedWebDemoAIEndpointIfUntouched(): Promise<void> {
     modelsFetched: true,
   });
   store.setActiveEndpoint("default");
+  store.setActiveModel("gemini-3.1-flash-lite");
+}
+
+/**
+ * Migration: browsers seeded before the lite-model default keep the
+ * quota-starved gemini-3.8-flash (free tier ~20 RPD) as their active model.
+ * If the config still matches the auto-seeded demo endpoint (placeholder
+ * "proxy" key, never user-edited), upgrade it in place to the current
+ * lite-first list. User-configured endpoints are never touched.
+ */
+function migrateStaleDemoLiteDefault(store: ReturnType<typeof useSettingsStore.getState>): void {
+  const { endpoints } = store.aiConfig;
+  const demoEndpoint = endpoints.find(
+    (ep) => ep.id === "default" && ep.apiKey === "proxy" && ep.provider === "google",
+  );
+  if (!demoEndpoint || store.aiConfig.activeModel !== "gemini-3.8-flash") return;
+  store.updateEndpoint("default", {
+    models: [
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash-lite",
+      "gemini-3.8-flash",
+      "gemini-3.5-flash",
+    ],
+    modelsFetched: true,
+  });
   store.setActiveModel("gemini-3.1-flash-lite");
 }

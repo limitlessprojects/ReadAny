@@ -52,7 +52,7 @@ export default function FeedbackDetailScreen({ navigation, route }: Props) {
         </Text>
         <TouchableOpacity
           onPress={() =>
-            Linking.openURL(`https://github.com/codedogQBY/ReadAny/issues/${issueNumber}`)
+            Linking.openURL(`https://github.com/limitlessprojects/ReadAny-App/issues/${issueNumber}`)
           }
           style={styles.externalBtn}
         >

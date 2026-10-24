@@ -49,7 +49,7 @@ const TECH_STACK = [
 const LINKS = [
   {
     label: "GitHub",
-    url: "https://github.com/codedogQBY/ReadAny",
+    url: "https://github.com/limitlessprojects/ReadAny-App",
   },
 ];
 
@@ -212,7 +212,7 @@ export default function AboutScreen() {
               ))}
               <TouchableOpacity
                 style={styles.linkItem}
-                onPress={() => Linking.openURL("https://github.com/codedogQBY/ReadAny/issues")}
+                onPress={() => Linking.openURL("https://github.com/limitlessprojects/ReadAny-App/issues")}
                 activeOpacity={0.7}
               >
                 <Text style={styles.linkText}>{t("about.feedback", "问题反馈")}</Text>

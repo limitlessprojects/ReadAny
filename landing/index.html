@@ -248,7 +248,7 @@
           <span class="tag">Android</span>
           <h3>Install the APK</h3>
           <p>A real Android app — download, tap to install (allow "install from this source"), done. AI works out of the box, no key needed.</p>
-          <a class="btn btn-primary" id="apk-btn" href="https://github.com/limitlessprojects/ReadAny/releases/latest/download/ReadAny.apk">Download APK ↓</a>
+          <a class="btn btn-primary" id="apk-btn" href="https://github.com/limitlessprojects/ReadAny-App/releases/latest/download/ReadAny.apk">Download APK ↓</a>
           <p class="apk-status" id="apk-status" style="font-size:12px;opacity:.7;margin-top:6px"></p>
         </div>
         <div class="dl">
@@ -261,7 +261,7 @@
           <span class="tag">Desktop</span>
           <h3>Installers &amp; releases</h3>
           <p>The Tauri desktop build ships native installers for Windows, macOS and Linux from the project's releases page.</p>
-          <a class="btn btn-ghost" href="https://github.com/limitlessprojects/ReadAny/releases" target="_blank" rel="noopener">Releases on GitHub</a>
+          <a class="btn btn-ghost" href="https://github.com/limitlessprojects/ReadAny-App/releases" target="_blank" rel="noopener">Releases on GitHub</a>
         </div>
       </div>
     </section>
@@ -299,7 +299,7 @@
         var btn = document.getElementById("apk-btn");
         var status = document.getElementById("apk-status");
         if (!btn || !status) return;
-        fetch("https://api.github.com/repos/limitlessprojects/ReadAny/releases/latest", { cache: "no-store" })
+        fetch("https://api.github.com/repos/limitlessprojects/ReadAny-App/releases/latest", { cache: "no-store" })
           .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
           .then(function (rel) {
             var asset = (rel.assets || []).find(function (a) { return a.name === "ReadAny.apk"; });

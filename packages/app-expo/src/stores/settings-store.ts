@@ -682,10 +682,16 @@ export async function seedMobileDemoAIEndpointIfUntouched(): Promise<void> {
     apiKey: "proxy", // placeholder — the demo site's edge proxy injects the real key
     baseUrl: "https://cerebras-demo1.netlify.app/gemini-api",
     useExactRequestUrl: false,
-    // Model list verified against the live API on 2026-10-23.
-    models: ["gemini-3.8-flash", "gemini-3.5-flash"],
+    // Lite-first: flash-lite models get hundreds of free-tier RPD vs ~20 for
+    // the full flash models. Verified against the live API on 2026-10-24.
+    models: [
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash-lite",
+      "gemini-3.8-flash",
+      "gemini-3.5-flash",
+    ],
     modelsFetched: true,
   });
   store.setActiveEndpoint("default");
-  store.setActiveModel("gemini-3.8-flash");
+  store.setActiveModel("gemini-3.1-flash-lite");
 }
